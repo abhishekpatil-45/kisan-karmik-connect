@@ -20,12 +20,15 @@ import {
 } from '@/components/ui/tabs';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn, signUp, user, loading } = useAuth();
   
   // Extract role from URL params if present
   const searchParams = new URLSearchParams(location.search);
@@ -36,6 +39,7 @@ const Auth = () => {
   // Form states for login
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
   
   // Form states for farmer registration
   const [farmerName, setFarmerName] = useState('');
@@ -43,6 +47,7 @@ const Auth = () => {
   const [farmerPhone, setFarmerPhone] = useState('');
   const [farmerPassword, setFarmerPassword] = useState('');
   const [farmerLocation, setFarmerLocation] = useState('');
+  const [registeringFarmer, setRegisteringFarmer] = useState(false);
   
   // Form states for laborer registration
   const [laborerName, setLaborerName] = useState('');
@@ -50,48 +55,106 @@ const Auth = () => {
   const [laborerPhone, setLaborerPhone] = useState('');
   const [laborerPassword, setLaborerPassword] = useState('');
   const [laborerLocation, setLaborerLocation] = useState('');
+  const [registeringLaborer, setRegisteringLaborer] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
   
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would handle login with API here
-    console.log('Logging in with:', { loginEmail, loginPassword });
+    if (!loginEmail || !loginPassword) {
+      toast({
+        title: "Missing fields",
+        description: "Please provide both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    toast({
-      title: "Logged in successfully",
-      description: "Welcome back to Agrisamadhana!",
-    });
-    
-    // Navigate to dashboard based on user role (will be dynamic in real app)
-    navigate('/dashboard');
+    try {
+      setSigningIn(true);
+      await signIn(loginEmail, loginPassword);
+      // The redirection is handled in the auth context
+    } catch (error) {
+      console.error('Login error:', error);
+      // Error is already handled in the auth context
+    } finally {
+      setSigningIn(false);
+    }
   };
   
-  const handleFarmerRegister = (e: React.FormEvent) => {
+  const handleFarmerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would handle registration with API here
-    console.log('Registering farmer:', { farmerName, farmerEmail, farmerPhone, farmerPassword, farmerLocation });
+    if (!farmerEmail || !farmerPassword || !farmerName) {
+      toast({
+        title: "Missing fields",
+        description: "Please provide your name, email, and password.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    toast({
-      title: "Registration successful!",
-      description: "Please complete your farmer profile.",
-    });
-    
-    // Navigate to profile completion page
-    navigate('/profile-setup?role=farmer');
+    try {
+      setRegisteringFarmer(true);
+      await signUp(farmerEmail, farmerPassword, { 
+        fullName: farmerName,
+        role: 'farmer'
+      });
+      
+      // After successful signup, redirect to login tab
+      setTab('login');
+      setLoginEmail(farmerEmail);
+      
+    } catch (error) {
+      console.error('Farmer registration error:', error);
+      // Error is already handled in the auth context
+    } finally {
+      setRegisteringFarmer(false);
+    }
   };
   
-  const handleLaborerRegister = (e: React.FormEvent) => {
+  const handleLaborerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would handle registration with API here
-    console.log('Registering laborer:', { laborerName, laborerEmail, laborerPhone, laborerPassword, laborerLocation });
+    if (!laborerEmail || !laborerPassword || !laborerName) {
+      toast({
+        title: "Missing fields",
+        description: "Please provide your name, email, and password.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    toast({
-      title: "Registration successful!",
-      description: "Please complete your laborer profile.",
-    });
-    
-    // Navigate to profile completion page
-    navigate('/profile-setup?role=laborer');
+    try {
+      setRegisteringLaborer(true);
+      await signUp(laborerEmail, laborerPassword, { 
+        fullName: laborerName,
+        role: 'laborer'
+      });
+      
+      // After successful signup, redirect to login tab
+      setTab('login');
+      setLoginEmail(laborerEmail);
+      
+    } catch (error) {
+      console.error('Laborer registration error:', error);
+      // Error is already handled in the auth context
+    } finally {
+      setRegisteringLaborer(false);
+    }
   };
+  
+  if (loading && user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Redirecting...</span>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -127,6 +190,7 @@ const Auth = () => {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
+                      disabled={signingIn}
                     />
                   </div>
                   <div className="space-y-2">
@@ -137,12 +201,21 @@ const Auth = () => {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
+                      disabled={signingIn}
                     />
                   </div>
                 </CardContent>
                 
                 <CardFooter>
-                  <Button type="submit" className="w-full">Login</Button>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={signingIn}
+                  >
+                    {signingIn ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing In...</>
+                    ) : 'Login'}
+                  </Button>
                 </CardFooter>
               </form>
             </TabsContent>
@@ -158,6 +231,7 @@ const Auth = () => {
                       value={farmerName}
                       onChange={(e) => setFarmerName(e.target.value)}
                       required
+                      disabled={registeringFarmer}
                     />
                   </div>
                   <div className="space-y-2">
@@ -169,27 +243,7 @@ const Auth = () => {
                       value={farmerEmail}
                       onChange={(e) => setFarmerEmail(e.target.value)}
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="farmer-phone">Phone Number</Label>
-                    <Input 
-                      id="farmer-phone" 
-                      type="tel" 
-                      placeholder="Your phone number" 
-                      value={farmerPhone}
-                      onChange={(e) => setFarmerPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="farmer-location">Location</Label>
-                    <Input 
-                      id="farmer-location" 
-                      placeholder="Village, District, State" 
-                      value={farmerLocation}
-                      onChange={(e) => setFarmerLocation(e.target.value)}
-                      required
+                      disabled={registeringFarmer}
                     />
                   </div>
                   <div className="space-y-2">
@@ -200,12 +254,24 @@ const Auth = () => {
                       value={farmerPassword}
                       onChange={(e) => setFarmerPassword(e.target.value)}
                       required
+                      disabled={registeringFarmer}
                     />
                   </div>
+                  <p className="text-sm text-gray-500">
+                    You'll be able to add your phone number and location after registration.
+                  </p>
                 </CardContent>
                 
                 <CardFooter>
-                  <Button type="submit" className="w-full">Register as Farmer</Button>
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={registeringFarmer}
+                  >
+                    {registeringFarmer ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Registering...</>
+                    ) : 'Register as Farmer'}
+                  </Button>
                 </CardFooter>
               </form>
             </TabsContent>
@@ -221,6 +287,7 @@ const Auth = () => {
                       value={laborerName}
                       onChange={(e) => setLaborerName(e.target.value)}
                       required
+                      disabled={registeringLaborer}
                     />
                   </div>
                   <div className="space-y-2">
@@ -232,27 +299,7 @@ const Auth = () => {
                       value={laborerEmail}
                       onChange={(e) => setLaborerEmail(e.target.value)}
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="laborer-phone">Phone Number</Label>
-                    <Input 
-                      id="laborer-phone" 
-                      type="tel" 
-                      placeholder="Your phone number" 
-                      value={laborerPhone}
-                      onChange={(e) => setLaborerPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="laborer-location">Location</Label>
-                    <Input 
-                      id="laborer-location" 
-                      placeholder="Village, District, State" 
-                      value={laborerLocation}
-                      onChange={(e) => setLaborerLocation(e.target.value)}
-                      required
+                      disabled={registeringLaborer}
                     />
                   </div>
                   <div className="space-y-2">
@@ -263,12 +310,24 @@ const Auth = () => {
                       value={laborerPassword}
                       onChange={(e) => setLaborerPassword(e.target.value)}
                       required
+                      disabled={registeringLaborer}
                     />
                   </div>
+                  <p className="text-sm text-gray-500">
+                    You'll be able to add your phone number and location after registration.
+                  </p>
                 </CardContent>
                 
                 <CardFooter>
-                  <Button type="submit" className="w-full">Register as Laborer</Button>
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={registeringLaborer}
+                  >
+                    {registeringLaborer ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Registering...</>
+                    ) : 'Register as Laborer'}
+                  </Button>
                 </CardFooter>
               </form>
             </TabsContent>
