@@ -1,5 +1,32 @@
+export interface Farmer {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  crops: string[];
+  farmSize: string;
+  languages: string[];
+  farmingType: string;
+  rating: number;
+  about: string;
+}
 
-export const farmers = [
+export interface Laborer {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  skills: string[];
+  availability: string;
+  languages: string[];
+  willRelocate: boolean;
+  wage: string;
+  experience: number;
+  rating: number;
+  about: string;
+}
+
+export const farmers: Farmer[] = [
   {
     id: '1',
     name: 'Rajesh Kumar',
@@ -62,7 +89,7 @@ export const farmers = [
   }
 ];
 
-export const laborers = [
+export const laborers: Laborer[] = [
   {
     id: '1',
     name: 'Venkatesh K.',

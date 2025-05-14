@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import SearchFilters from '@/components/SearchFilters';
 import ProfileCard from '@/components/ProfileCard';
 import { useToast } from '@/hooks/use-toast';
-import { farmers, laborers } from '@/data/mockData';
+import { farmers, laborers, Farmer, Laborer } from '@/data/mockData';
 import { Filter, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -35,7 +35,9 @@ const Search = () => {
       
       // Apply crop filter
       if (searchFilters.crop) {
-        const cropFields = searchTarget === 'laborers' ? item.skills : item.crops;
+        const cropFields = searchTarget === 'laborers' 
+          ? (item as Laborer).skills 
+          : (item as Farmer).crops;
         if (!cropFields.includes(searchFilters.crop)) {
           return false;
         }
@@ -43,7 +45,7 @@ const Search = () => {
       
       // Apply experience filter for laborers
       if (searchTarget === 'laborers' && searchFilters.experience > 0) {
-        if (item.experience < searchFilters.experience) {
+        if ((item as Laborer).experience < searchFilters.experience) {
           return false;
         }
       }
@@ -113,21 +115,28 @@ const Search = () => {
           
           {filteredResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredResults.map(profile => (
-                <ProfileCard
-                  key={profile.id}
-                  name={profile.name}
-                  location={profile.location}
-                  image={profile.image}
-                  role={searchTarget === 'laborers' ? 'laborer' : 'farmer'}
-                  skills={searchTarget === 'laborers' ? profile.skills : undefined}
-                  crops={searchTarget === 'laborers' ? undefined : profile.crops}
-                  rating={profile.rating}
-                  experience={searchTarget === 'laborers' ? profile.experience : undefined}
-                  onConnect={() => handleConnect(profile.id)}
-                  onMessage={() => handleMessage(profile.id)}
-                />
-              ))}
+              {filteredResults.map(profile => {
+                // Determine skills or crops based on search target
+                const skills = searchTarget === 'laborers' ? (profile as Laborer).skills : undefined;
+                const crops = searchTarget === 'farmers' ? (profile as Farmer).crops : undefined;
+                const experience = searchTarget === 'laborers' ? (profile as Laborer).experience : undefined;
+                
+                return (
+                  <ProfileCard
+                    key={profile.id}
+                    name={profile.name}
+                    location={profile.location}
+                    image={profile.image}
+                    role={searchTarget === 'laborers' ? 'laborer' : 'farmer'}
+                    skills={skills}
+                    crops={crops}
+                    rating={profile.rating}
+                    experience={experience}
+                    onConnect={() => handleConnect(profile.id)}
+                    onMessage={() => handleMessage(profile.id)}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-16 bg-white rounded-lg shadow-md">
