@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { crops } from '@/data/crops';
+import { crops, cropCategories, cropSeasons } from '@/data/crops';
 
 interface SearchFiltersProps {
   onSearch: (filters: any) => void;
@@ -21,6 +21,8 @@ interface SearchFiltersProps {
 const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
   const [keyword, setKeyword] = React.useState('');
   const [selectedCrop, setSelectedCrop] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState('');
+  const [selectedSeason, setSelectedSeason] = React.useState('');
   const [distance, setDistance] = React.useState([50]);
   const [experience, setExperience] = React.useState('');
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
@@ -29,6 +31,8 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
     onSearch({
       keyword,
       crop: selectedCrop,
+      category: selectedCategory,
+      season: selectedSeason,
       distance: distance[0],
       experience: experience ? parseInt(experience) : 0,
     });
@@ -60,9 +64,9 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       </div>
 
       {isFilterOpen && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t border-gray-100">
           <div>
-            <Label htmlFor="crop" className="text-sm font-medium">Crop Type</Label>
+            <Label htmlFor="crop" className="text-sm font-medium">Crop</Label>
             <Select value={selectedCrop} onValueChange={setSelectedCrop}>
               <SelectTrigger id="crop">
                 <SelectValue placeholder="Select crop" />
@@ -72,6 +76,40 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
                 {crops.map((crop) => (
                   <SelectItem key={crop.id} value={crop.id}>
                     {crop.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger id="category">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Categories</SelectItem>
+                {cropCategories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="season" className="text-sm font-medium">Season</Label>
+            <Select value={selectedSeason} onValueChange={setSelectedSeason}>
+              <SelectTrigger id="season">
+                <SelectValue placeholder="Select season" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Seasons</SelectItem>
+                {cropSeasons.map((season) => (
+                  <SelectItem key={season.id} value={season.id}>
+                    {season.name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -10,6 +10,7 @@ import { Filter, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from '@/components/ui/label';
+import { crops } from '@/data/crops';
 
 const Search = () => {
   const { toast } = useToast();
@@ -17,6 +18,8 @@ const Search = () => {
   const [searchFilters, setSearchFilters] = useState({
     keyword: '',
     crop: '',
+    category: '',
+    season: '',
     distance: 50,
     experience: 0
   });
@@ -39,6 +42,36 @@ const Search = () => {
           ? (item as Laborer).skills 
           : (item as Farmer).crops;
         if (!cropFields.includes(searchFilters.crop)) {
+          return false;
+        }
+      }
+      
+      // Apply category filter
+      if (searchFilters.category) {
+        const cropFields = searchTarget === 'laborers' 
+          ? (item as Laborer).skills 
+          : (item as Farmer).crops;
+          
+        const matchedCrops = crops.filter(crop => 
+          cropFields.includes(crop.id) && crop.category === searchFilters.category
+        );
+        
+        if (matchedCrops.length === 0) {
+          return false;
+        }
+      }
+      
+      // Apply season filter
+      if (searchFilters.season) {
+        const cropFields = searchTarget === 'laborers' 
+          ? (item as Laborer).skills 
+          : (item as Farmer).crops;
+          
+        const matchedCrops = crops.filter(crop => 
+          cropFields.includes(crop.id) && crop.season === searchFilters.season
+        );
+        
+        if (matchedCrops.length === 0) {
           return false;
         }
       }
