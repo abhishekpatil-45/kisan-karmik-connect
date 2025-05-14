@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import ProfileCard from '@/components/ProfileCard';
 import { useToast } from '@/hooks/use-toast';
 import { farmers, laborers } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Bell, 
   MessageCircle, 
@@ -16,6 +18,7 @@ import {
 
 const Dashboard = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   // In a real app, we would get the user role from authentication
   const [userRole] = useState<'farmer' | 'laborer'>('farmer');
   
@@ -135,10 +138,12 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
-                <Button variant="outline" className="w-full mb-2">View Profile</Button>
-                <Button variant="outline" className="w-full" onClick={() => toast({ title: "Coming soon!", description: "Profile editing will be available in the next update." })}>
-                  Edit Profile
-                </Button>
+                <Link to="/profile">
+                  <Button variant="outline" className="w-full mb-2">View Profile</Button>
+                </Link>
+                <Link to="/profile-setup">
+                  <Button variant="outline" className="w-full">Edit Profile</Button>
+                </Link>
               </div>
               
               {/* Notifications */}
