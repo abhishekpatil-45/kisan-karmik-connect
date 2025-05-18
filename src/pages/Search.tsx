@@ -1,19 +1,21 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import SearchFilters from '@/components/SearchFilters';
 import ProfileCard from '@/components/ProfileCard';
 import { useToast } from '@/hooks/use-toast';
-import { farmers, laborers, Farmer, Laborer } from '@/data/mockData';
-import { Filter, Settings } from 'lucide-react';
+import { Filter, Settings, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from '@/components/ui/label';
 import { crops } from '@/data/crops';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 const Search = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchTarget, setSearchTarget] = useState<'laborers' | 'farmers'>('laborers');
   const [searchFilters, setSearchFilters] = useState({
     keyword: '',
@@ -23,71 +25,72 @@ const Search = () => {
     distance: 50,
     experience: 0
   });
+  const [filteredResults, setFilteredResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Based on filters, get filtered results
-  const getFilteredResults = () => {
-    const data = searchTarget === 'laborers' ? laborers : farmers;
-    
-    return data.filter(item => {
-      // Apply keyword filter to name and location
-      if (searchFilters.keyword && 
-          !item.name.toLowerCase().includes(searchFilters.keyword.toLowerCase()) && 
-          !item.location.toLowerCase().includes(searchFilters.keyword.toLowerCase())) {
-        return false;
-      }
+  // Fetch search results when filters change
+  useEffect(() => {
+    const fetchResults = async () => {
+      setIsLoading(true);
+      setError(null);
       
-      // Apply crop filter
-      if (searchFilters.crop) {
-        const cropFields = searchTarget === 'laborers' 
-          ? (item as Laborer).skills 
-          : (item as Farmer).crops;
-        if (!cropFields.includes(searchFilters.crop)) {
-          return false;
+      try {
+        // Call our enhanced search function
+        const { data, error } = await supabase.functions.invoke('enhance-search', {
+          body: {
+            filters: searchFilters,
+            searchTarget
+          }
+        });
+
+        if (error) {
+          throw new Error(error.message);
         }
-      }
-      
-      // Apply category filter
-      if (searchFilters.category) {
-        const cropFields = searchTarget === 'laborers' 
-          ? (item as Laborer).skills 
-          : (item as Farmer).crops;
-          
-        const matchedCrops = crops.filter(crop => 
-          cropFields.includes(crop.id) && crop.category === searchFilters.category
-        );
         
-        if (matchedCrops.length === 0) {
-          return false;
-        }
-      }
-      
-      // Apply season filter
-      if (searchFilters.season) {
-        const cropFields = searchTarget === 'laborers' 
-          ? (item as Laborer).skills 
-          : (item as Farmer).crops;
-          
-        const matchedCrops = crops.filter(crop => 
-          cropFields.includes(crop.id) && crop.season === searchFilters.season
-        );
+        console.log('Search results:', data);
         
-        if (matchedCrops.length === 0) {
-          return false;
+        // If we have data, process it
+        if (data && data.data) {
+          // Transform the data to match our ProfileCard component expectations
+          const processedResults = data.data.map(profile => ({
+            id: profile.id,
+            name: profile.full_name || 'Unnamed User',
+            location: profile.location || 'Unknown Location',
+            // Using a placeholder image for now - in production, you'd have a user_avatar field
+            image: `/avatars/${searchTarget === 'laborers' ? 'laborer' : 'farmer'}${Math.floor(Math.random() * 5) + 1}.jpg`,
+            rating: Math.floor(Math.random() * 5) + 1, // Placeholder rating
+            skills: profile.skills ? JSON.parse(profile.skills) : [],
+            crops: profile.crops ? JSON.parse(profile.crops) : [],
+            experience: profile.experience || 0
+          }));
+          
+          setFilteredResults(processedResults);
+        } else {
+          setFilteredResults([]);
         }
+      } catch (err) {
+        console.error('Error fetching search results:', err);
+        setError('Failed to fetch results. Please try again later.');
+        toast({
+          title: "Search Error",
+          description: "There was a problem with your search. Please try again.",
+          variant: "destructive",
+        });
+        
+        // Fall back to mock data if API fails
+        import('@/data/mockData').then(({ farmers, laborers }) => {
+          const mockData = searchTarget === 'laborers' ? laborers : farmers;
+          setFilteredResults(mockData);
+        });
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Apply experience filter for laborers
-      if (searchTarget === 'laborers' && searchFilters.experience > 0) {
-        if ((item as Laborer).experience < searchFilters.experience) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  };
-  
-  const filteredResults = getFilteredResults();
+    };
+
+    // Only fetch if we have at least basic filter criteria
+    fetchResults();
+  }, [searchFilters, searchTarget, toast]);
   
   const handleConnect = (id: string) => {
     toast({
@@ -139,20 +142,40 @@ const Search = () => {
           
           <div className="mb-4 flex justify-between items-center">
             <h2 className="text-xl font-semibold">
-              {filteredResults.length} {searchTarget} found
+              {isLoading ? 'Searching...' : `${filteredResults.length} ${searchTarget} found`}
             </h2>
             <Button variant="outline" size="sm" disabled>
               <Settings size={16} className="mr-2" /> Advanced Filters
             </Button>
           </div>
           
-          {filteredResults.length > 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <span className="ml-3 text-xl text-gray-600">Searching for matches...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16 bg-white rounded-lg shadow-md">
+              <div className="text-red-500 mb-4">
+                <Filter size={48} className="mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">Error fetching results</h3>
+              <p className="mt-2 text-gray-600">{error}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => handleSearch(searchFilters)}
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : filteredResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredResults.map(profile => {
                 // Determine skills or crops based on search target
-                const skills = searchTarget === 'laborers' ? (profile as Laborer).skills : undefined;
-                const crops = searchTarget === 'farmers' ? (profile as Farmer).crops : undefined;
-                const experience = searchTarget === 'laborers' ? (profile as Laborer).experience : undefined;
+                const skills = searchTarget === 'laborers' ? profile.skills : undefined;
+                const crops = searchTarget === 'farmers' ? profile.crops : undefined;
+                const experience = searchTarget === 'laborers' ? profile.experience : undefined;
                 
                 return (
                   <ProfileCard

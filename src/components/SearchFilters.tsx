@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Filter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,22 +19,50 @@ interface SearchFiltersProps {
 }
 
 const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
-  const [keyword, setKeyword] = React.useState('');
-  const [selectedCrop, setSelectedCrop] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState('');
-  const [selectedSeason, setSelectedSeason] = React.useState('');
-  const [distance, setDistance] = React.useState([50]);
-  const [experience, setExperience] = React.useState('');
-  const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [selectedCrop, setSelectedCrop] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSeason, setSelectedSeason] = useState('');
+  const [distance, setDistance] = useState([50]);
+  const [experience, setExperience] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const handleSearch = () => {
+    // Convert crop, category, and season IDs to names for more accurate search
+    const cropName = selectedCrop ? crops.find(c => c.id === selectedCrop)?.name : '';
+    const categoryName = selectedCategory ? cropCategories.find(c => c.id === selectedCategory)?.name : '';
+    const seasonName = selectedSeason ? cropSeasons.find(s => s.id === selectedSeason)?.name : '';
+
     onSearch({
-      keyword,
+      keyword: keyword,
       crop: selectedCrop,
+      cropName: cropName,
       category: selectedCategory,
+      categoryName: categoryName,
       season: selectedSeason,
+      seasonName: seasonName,
       distance: distance[0],
       experience: experience ? parseInt(experience) : 0,
+    });
+  };
+
+  // Add a reset filters function
+  const resetFilters = () => {
+    setKeyword('');
+    setSelectedCrop('');
+    setSelectedCategory('');
+    setSelectedSeason('');
+    setDistance([50]);
+    setExperience('');
+    
+    // Also trigger a search with reset filters
+    onSearch({
+      keyword: '',
+      crop: '',
+      category: '',
+      season: '',
+      distance: 50,
+      experience: 0,
     });
   };
 
@@ -48,6 +76,7 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             className="pl-10"
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
         </div>
         <Button 
@@ -147,6 +176,12 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
                 <SelectItem value="10">10+ years</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="flex items-end">
+            <Button variant="outline" onClick={resetFilters} className="w-full">
+              Reset Filters
+            </Button>
           </div>
         </div>
       )}
