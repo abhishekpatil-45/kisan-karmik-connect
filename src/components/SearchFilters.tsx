@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Check, Filter, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Filter, Search, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,19 +13,43 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { crops, cropCategories, cropSeasons } from '@/data/crops';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { Constants } from '@/integrations/supabase/types';
 
 interface SearchFiltersProps {
   onSearch: (filters: any) => void;
+  initialFilters?: any;
 }
 
-const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
-  const [keyword, setKeyword] = useState('');
-  const [selectedCrop, setSelectedCrop] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSeason, setSelectedSeason] = useState('');
-  const [distance, setDistance] = useState([50]);
-  const [experience, setExperience] = useState('');
+const SearchFilters = ({ onSearch, initialFilters = {} }: SearchFiltersProps) => {
+  const [keyword, setKeyword] = useState(initialFilters.keyword || '');
+  const [selectedCrop, setSelectedCrop] = useState(initialFilters.crop || '');
+  const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
+  const [selectedSeason, setSelectedSeason] = useState(initialFilters.season || '');
+  const [distance, setDistance] = useState([initialFilters.distance || 50]);
+  const [experience, setExperience] = useState(initialFilters.experience?.toString() || '');
+  const [location, setLocation] = useState(initialFilters.location || '');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(
+    initialFilters.dateFrom ? new Date(initialFilters.dateFrom) : undefined
+  );
+  const [dateTo, setDateTo] = useState<Date | undefined>(
+    initialFilters.dateTo ? new Date(initialFilters.dateTo) : undefined
+  );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  useEffect(() => {
+    // Update from initialFilters when they change
+    if (initialFilters) {
+      if (initialFilters.crop !== undefined) setSelectedCrop(initialFilters.crop);
+      if (initialFilters.keyword !== undefined) setKeyword(initialFilters.keyword);
+      if (initialFilters.category !== undefined) setSelectedCategory(initialFilters.category);
+      if (initialFilters.season !== undefined) setSelectedSeason(initialFilters.season);
+      if (initialFilters.distance !== undefined) setDistance([initialFilters.distance]);
+      if (initialFilters.experience !== undefined) setExperience(initialFilters.experience.toString());
+    }
+  }, [initialFilters]);
 
   const handleSearch = () => {
     // Convert crop, category, and season IDs to names for more accurate search
@@ -41,8 +65,11 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       categoryName: categoryName,
       season: selectedSeason,
       seasonName: seasonName,
+      location: location,
       distance: distance[0],
       experience: experience ? parseInt(experience) : 0,
+      dateFrom: dateFrom ? format(dateFrom, 'yyyy-MM-dd') : '',
+      dateTo: dateTo ? format(dateTo, 'yyyy-MM-dd') : '',
     });
   };
 
@@ -54,6 +81,9 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
     setSelectedSeason('');
     setDistance([50]);
     setExperience('');
+    setLocation('');
+    setDateFrom(undefined);
+    setDateTo(undefined);
     
     // Also trigger a search with reset filters
     onSearch({
@@ -61,13 +91,16 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       crop: '',
       category: '',
       season: '',
+      location: '',
       distance: 50,
       experience: 0,
+      dateFrom: '',
+      dateTo: '',
     });
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+    <div className="bg-white rounded-lg p-4 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -102,9 +135,9 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Crops</SelectItem>
-                {crops.map((crop) => (
-                  <SelectItem key={crop.id} value={crop.id}>
-                    {crop.name}
+                {Constants.public.Enums.crop_category.map((crop) => (
+                  <SelectItem key={crop} value={crop}>
+                    {crop.charAt(0).toUpperCase() + crop.slice(1).replace('_', ' ')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -112,16 +145,16 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
           </div>
           
           <div>
-            <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+            <Label htmlFor="labor_type" className="text-sm font-medium">Labor Type</Label>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select category" />
+              <SelectTrigger id="labor_type">
+                <SelectValue placeholder="Select labor type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
-                {cropCategories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
+                <SelectItem value="">All Types</SelectItem>
+                {Constants.public.Enums.labor_type.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -129,20 +162,59 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
           </div>
           
           <div>
-            <Label htmlFor="season" className="text-sm font-medium">Season</Label>
-            <Select value={selectedSeason} onValueChange={setSelectedSeason}>
-              <SelectTrigger id="season">
-                <SelectValue placeholder="Select season" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Seasons</SelectItem>
-                {cropSeasons.map((season) => (
-                  <SelectItem key={season.id} value={season.id}>
-                    {season.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="location" className="text-sm font-medium">Location</Label>
+            <Input
+              id="location"
+              placeholder="Enter location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium">Date From</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFrom ? format(dateFrom, 'PPP') : <span>Select date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium">Date To</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateTo ? format(dateTo, 'PPP') : <span>Select date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>

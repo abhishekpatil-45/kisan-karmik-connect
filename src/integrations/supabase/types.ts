@@ -9,32 +9,141 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      profiles: {
+      jobs: {
         Row: {
           created_at: string
-          full_name: string | null
+          crop_category: Database["public"]["Enums"]["crop_category"] | null
+          description: string | null
+          end_date: string | null
+          farmer_id: string
           id: string
+          labor_type: Database["public"]["Enums"]["labor_type"] | null
           location: string | null
-          phone: string | null
-          role: string
+          pay_rate: number | null
+          pay_type: string | null
+          start_date: string
+          status: string | null
+          title: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          full_name?: string | null
-          id: string
+          crop_category?: Database["public"]["Enums"]["crop_category"] | null
+          description?: string | null
+          end_date?: string | null
+          farmer_id: string
+          id?: string
+          labor_type?: Database["public"]["Enums"]["labor_type"] | null
           location?: string | null
-          phone?: string | null
-          role: string
+          pay_rate?: number | null
+          pay_type?: string | null
+          start_date: string
+          status?: string | null
+          title: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          crop_category?: Database["public"]["Enums"]["crop_category"] | null
+          description?: string | null
+          end_date?: string | null
+          farmer_id?: string
+          id?: string
+          labor_type?: Database["public"]["Enums"]["labor_type"] | null
+          location?: string | null
+          pay_rate?: number | null
+          pay_type?: string | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_farmer_id_fkey"
+            columns: ["farmer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      laborer_skills: {
+        Row: {
+          created_at: string
+          crop_category: Database["public"]["Enums"]["crop_category"] | null
+          experience_years: number | null
+          id: string
+          labor_type: Database["public"]["Enums"]["labor_type"] | null
+          laborer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crop_category?: Database["public"]["Enums"]["crop_category"] | null
+          experience_years?: number | null
+          id?: string
+          labor_type?: Database["public"]["Enums"]["labor_type"] | null
+          laborer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crop_category?: Database["public"]["Enums"]["crop_category"] | null
+          experience_years?: number | null
+          id?: string
+          labor_type?: Database["public"]["Enums"]["labor_type"] | null
+          laborer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "laborer_skills_laborer_id_fkey"
+            columns: ["laborer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          availability: Json | null
+          created_at: string
+          experience: number | null
+          full_name: string | null
+          id: string
+          location: string | null
+          phone: string | null
+          rating: number | null
+          role: string
+          skills: Json | null
+          updated_at: string
+        }
+        Insert: {
+          availability?: Json | null
+          created_at?: string
+          experience?: number | null
+          full_name?: string | null
+          id: string
+          location?: string | null
+          phone?: string | null
+          rating?: number | null
+          role: string
+          skills?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          availability?: Json | null
+          created_at?: string
+          experience?: number | null
           full_name?: string | null
           id?: string
           location?: string | null
           phone?: string | null
+          rating?: number | null
           role?: string
+          skills?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -47,7 +156,29 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      crop_category:
+        | "paddy"
+        | "sugarcane"
+        | "cotton"
+        | "wheat"
+        | "maize"
+        | "pulses"
+        | "vegetables"
+        | "fruits"
+        | "horticulture"
+        | "spices"
+        | "oilseeds"
+      labor_type:
+        | "harvesting"
+        | "sowing"
+        | "weeding"
+        | "fertilizing"
+        | "irrigation"
+        | "pesticide_application"
+        | "nursery_management"
+        | "pruning"
+        | "grading"
+        | "packaging"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -162,6 +293,32 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      crop_category: [
+        "paddy",
+        "sugarcane",
+        "cotton",
+        "wheat",
+        "maize",
+        "pulses",
+        "vegetables",
+        "fruits",
+        "horticulture",
+        "spices",
+        "oilseeds",
+      ],
+      labor_type: [
+        "harvesting",
+        "sowing",
+        "weeding",
+        "fertilizing",
+        "irrigation",
+        "pesticide_application",
+        "nursery_management",
+        "pruning",
+        "grading",
+        "packaging",
+      ],
+    },
   },
 } as const

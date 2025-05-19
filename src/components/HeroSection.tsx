@@ -18,14 +18,14 @@ const HeroSection = () => {
               solving labor shortages and improving farming efficiency.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/auth?role=farmer">
+              <Link to="/category-selection?flow=worker">
                 <Button size="lg" className="bg-accent hover:bg-accent-600 text-black w-full sm:w-auto">
-                  Register as Farmer
+                  Find Workers
                 </Button>
               </Link>
-              <Link to="/auth?role=laborer">
+              <Link to="/category-selection?flow=job">
                 <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
-                  Register as Laborer
+                  Find Jobs
                 </Button>
               </Link>
             </div>

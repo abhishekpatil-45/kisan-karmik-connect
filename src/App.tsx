@@ -14,6 +14,8 @@ import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CategorySelection from "./pages/CategorySelection";
+import Jobs from "./pages/Jobs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +53,8 @@ const App = () => (
               } 
             />
             <Route path="/search" element={<Search />} />
+            <Route path="/category-selection" element={<CategorySelection />} />
+            <Route path="/jobs" element={<Jobs />} />
             <Route 
               path="/messages" 
               element={

@@ -38,6 +38,59 @@ serve(async (req) => {
     if (filters.keyword && filters.keyword.trim() !== '') {
       query = query.or(`full_name.ilike.%${filters.keyword}%,location.ilike.%${filters.keyword}%`);
     }
+
+    // Filter by location if provided
+    if (filters.location && filters.location.trim() !== '') {
+      query = query.ilike('location', `%${filters.location}%`);
+    }
+    
+    // Filter by experience if provided
+    if (filters.experience && filters.experience > 0) {
+      query = query.gte('experience', filters.experience);
+    }
+
+    // If searching for laborers and we have a crop filter
+    if (searchTarget === 'laborers' && filters.crop && filters.crop.trim() !== '') {
+      // We need to join with laborer_skills table to find laborers with the specific crop skill
+      // This requires a more complex query
+      const { data: laborerIds, error: laborerIdsError } = await supabase
+        .from('laborer_skills')
+        .select('laborer_id')
+        .eq('crop_category', filters.crop);
+        
+      if (laborerIdsError) throw laborerIdsError;
+      
+      if (laborerIds && laborerIds.length > 0) {
+        const ids = laborerIds.map(item => item.laborer_id);
+        query = query.in('id', ids);
+      } else {
+        // No laborers with this crop skill, return empty array
+        return new Response(JSON.stringify({ data: [], count: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // If we have a laborType filter
+    if (searchTarget === 'laborers' && filters.laborType && filters.laborType.trim() !== '') {
+      // Find laborers with the specific labor type skill
+      const { data: laborerIds, error: laborerIdsError } = await supabase
+        .from('laborer_skills')
+        .select('laborer_id')
+        .eq('labor_type', filters.laborType);
+        
+      if (laborerIdsError) throw laborerIdsError;
+      
+      if (laborerIds && laborerIds.length > 0) {
+        const ids = laborerIds.map(item => item.laborer_id);
+        query = query.in('id', ids);
+      } else {
+        // No laborers with this labor type skill, return empty array
+        return new Response(JSON.stringify({ data: [], count: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
     
     // Execute the query
     const { data, error } = await query;
@@ -116,8 +169,38 @@ function calculateRelevanceScore(profile, filters) {
     }
   }
   
-  // More advanced scoring could be implemented based on skills, experience, etc.
-  // This would require additional profile fields to be stored in the database
+  // Match by experience
+  if (filters.experience && profile.experience) {
+    if (profile.experience >= filters.experience) {
+      score += 2;
+    }
+  }
+  
+  // Match by location
+  if (filters.location && profile.location) {
+    if (profile.location.toLowerCase().includes(filters.location.toLowerCase())) {
+      score += 4;
+    }
+  }
+  
+  // If skills are stored as JSON, we can check for matches
+  if (profile.skills && typeof profile.skills === 'string') {
+    try {
+      const skills = JSON.parse(profile.skills);
+      
+      // Match by crop
+      if (filters.crop && skills.includes(filters.crop)) {
+        score += 3;
+      }
+      
+      // Match by labor type
+      if (filters.laborType && skills.includes(filters.laborType)) {
+        score += 3;
+      }
+    } catch (e) {
+      // Skills not in JSON format, ignore
+    }
+  }
   
   return score;
 }
