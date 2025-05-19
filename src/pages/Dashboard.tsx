@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 import { 
   Bell, 
   MessageCircle, 
@@ -23,7 +24,7 @@ interface Profile {
   location: string | null;
   rating: number | null;
   role: string;
-  skills: string[] | null;
+  skills: string[] | Json | null;
   experience: number | null;
 }
 
@@ -65,7 +66,16 @@ const Dashboard = () => {
       
       if (error) throw error;
       
-      setUserProfile(data);
+      // Update the userProfile state with type-safe data
+      setUserProfile({
+        id: data.id,
+        full_name: data.full_name,
+        location: data.location,
+        rating: data.rating,
+        role: data.role,
+        skills: data.skills,
+        experience: data.experience
+      });
     } catch (error) {
       console.error('Error fetching user profile:', error);
       toast({
