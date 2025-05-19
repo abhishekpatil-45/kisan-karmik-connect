@@ -11,6 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import SearchFilters from '@/components/SearchFilters';
 import { useAuth } from '@/context/AuthContext';
+import { Constants } from '@/integrations/supabase/types';
+
+// Get the valid crop categories and labor types from Supabase types
+const validCropCategories = Constants.public.Enums.crop_category;
+const validLaborTypes = Constants.public.Enums.labor_type;
 
 interface Job {
   id: string;
@@ -55,6 +60,16 @@ const Jobs = () => {
     fetchJobs();
   }, [cropFilter, laborTypeFilter, searchFilters]);
 
+  // Helper function to validate crop category against allowed values
+  const isValidCropCategory = (crop: string): crop is typeof validCropCategories[number] => {
+    return validCropCategories.includes(crop as any);
+  };
+
+  // Helper function to validate labor type against allowed values
+  const isValidLaborType = (labor: string): labor is typeof validLaborTypes[number] => {
+    return validLaborTypes.includes(labor as any);
+  };
+
   const fetchJobs = async () => {
     setIsLoading(true);
     setError(null);
@@ -69,11 +84,11 @@ const Jobs = () => {
         .eq('status', 'open');
       
       // Apply filters
-      if (cropFilter) {
+      if (cropFilter && isValidCropCategory(cropFilter)) {
         query = query.eq('crop_category', cropFilter);
       }
       
-      if (laborTypeFilter) {
+      if (laborTypeFilter && isValidLaborType(laborTypeFilter)) {
         query = query.eq('labor_type', laborTypeFilter);
       }
       
