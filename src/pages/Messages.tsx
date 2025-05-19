@@ -1,48 +1,196 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Search } from 'lucide-react';
+import { Send, Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { laborers, farmers } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+
+interface Contact {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  role: string;
+  lastActive?: string;
+  hasUnread?: boolean;
+}
+
+interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  text: string;
+  created_at: string;
+  read: boolean;
+}
 
 const Messages = () => {
   const { toast } = useToast();
-  const [activeChat, setActiveChat] = useState<string | null>('1');
+  const { user } = useAuth();
+  const [activeChat, setActiveChat] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   
-  // Combine farmers and laborers for the chat list
-  const contacts = [...farmers, ...laborers];
-  
-  // Filter contacts based on search term
-  const filteredContacts = contacts.filter(contact => 
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  // Example messages for the demo
-  const chatMessages = [
-    { id: '1', sender: 'them', text: "Hello, I saw that you're looking for rice field workers. I have 5 years of experience.", time: '10:30 AM' },
-    { id: '2', sender: 'me', text: "Yes, I need help with harvest next month. When are you available?", time: '10:32 AM' },
-    { id: '3', sender: 'them', text: "I'm available starting from the 15th of next month.", time: '10:35 AM' },
-    { id: '4', sender: 'me', text: "That works perfectly. What are your wage expectations?", time: '10:40 AM' },
-    { id: '5', sender: 'them', text: "I typically charge ₹500 per day for rice harvesting.", time: '10:42 AM' }
-  ];
+  useEffect(() => {
+    if (user) {
+      fetchContacts();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeChat && user) {
+      fetchMessages(activeChat);
+    }
+  }, [activeChat, user]);
+
+  const fetchContacts = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoadingContacts(true);
+      
+      const { data: userProfileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (!userProfileData) throw new Error('User profile not found');
+      
+      // Fetch profiles with opposite role to show as contacts
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transform data to match the Contact interface
+      const processedContacts: Contact[] = (data || []).map(profile => ({
+        id: profile.id,
+        name: profile.full_name || 'Unnamed User',
+        location: profile.location || 'Unknown Location',
+        image: `/avatars/${profile.role === 'farmer' ? 'farmer' : 'laborer'}${Math.floor(Math.random() * 5) + 1}.jpg`,
+        role: profile.role,
+        lastActive: new Date().toISOString(),
+        hasUnread: Math.random() > 0.7 // Random for demo
+      }));
+      
+      setContacts(processedContacts);
+      
+      // Set first contact as active if none selected
+      if (processedContacts.length > 0 && !activeChat) {
+        setActiveChat(processedContacts[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load contacts. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  const fetchMessages = async (contactId: string) => {
+    if (!user) return;
+    
+    try {
+      setIsLoadingMessages(true);
+      
+      // We would normally have a messages table in the database
+      // For now, generate mock messages
+      const mockMessages = [
+        { id: '1', sender_id: contactId, receiver_id: user.id, text: "Hello, I'm interested in hiring you.", created_at: new Date(Date.now() - 3600000).toISOString(), read: true },
+        { id: '2', sender_id: user.id, receiver_id: contactId, text: "Hi there! I'd be happy to discuss work opportunities.", created_at: new Date(Date.now() - 3500000).toISOString(), read: true },
+        { id: '3', sender_id: contactId, receiver_id: user.id, text: "Great! I need help with my farm next month.", created_at: new Date(Date.now() - 3400000).toISOString(), read: true },
+        { id: '4', sender_id: user.id, receiver_id: contactId, text: "What type of work are you looking for?", created_at: new Date(Date.now() - 3300000).toISOString(), read: true },
+        { id: '5', sender_id: contactId, receiver_id: user.id, text: "Primarily harvesting and some planting.", created_at: new Date(Date.now() - 3200000).toISOString(), read: false },
+      ];
+      
+      setMessages(mockMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
   
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !activeChat || !user) return;
     
-    console.log('Sending message:', message);
-    toast({
-      title: "Message sent",
-      description: "Your message has been delivered.",
-    });
-    
-    setMessage('');
+    try {
+      // Create new message
+      const newMessage = {
+        id: Date.now().toString(),
+        sender_id: user.id,
+        receiver_id: activeChat,
+        text: message,
+        created_at: new Date().toISOString(),
+        read: false
+      };
+      
+      // Add to messages list
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+      
+      toast({
+        title: "Message sent",
+        description: "Your message has been delivered.",
+      });
+      
+      setMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+  
+  // Filter contacts based on search term
+  const filteredContacts = contacts.filter(contact => 
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    contact.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Find active contact details
+  const activeContact = contacts.find(c => c.id === activeChat);
+  
+  if (!user) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <NavBar />
+        <main className="flex-1 bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Please sign in to view messages</h1>
+            <Button asChild>
+              <a href="/auth">Sign In</a>
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -66,28 +214,39 @@ const Messages = () => {
               </div>
               
               <div className="overflow-y-auto flex-1">
-                {filteredContacts.map(contact => (
-                  <div 
-                    key={contact.id}
-                    className={`flex items-center p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${activeChat === contact.id ? 'bg-primary-50' : ''}`}
-                    onClick={() => setActiveChat(contact.id)}
-                  >
-                    <img 
-                      src={contact.image} 
-                      alt={contact.name} 
-                      className="h-12 w-12 rounded-full object-cover mr-3" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">{contact.name}</h3>
-                      <p className="text-sm text-gray-500 truncate">
-                        {contact.location}
-                      </p>
-                    </div>
-                    {contact.id === '1' && (
-                      <div className="bg-primary-500 rounded-full h-2 w-2"></div>
-                    )}
+                {isLoadingContacts ? (
+                  <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2">Loading contacts...</span>
                   </div>
-                ))}
+                ) : filteredContacts.length > 0 ? (
+                  filteredContacts.map(contact => (
+                    <div 
+                      key={contact.id}
+                      className={`flex items-center p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${activeChat === contact.id ? 'bg-primary-50' : ''}`}
+                      onClick={() => setActiveChat(contact.id)}
+                    >
+                      <img 
+                        src={contact.image} 
+                        alt={contact.name} 
+                        className="h-12 w-12 rounded-full object-cover mr-3" 
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">{contact.name}</h3>
+                        <p className="text-sm text-gray-500 truncate">
+                          {contact.location}
+                        </p>
+                      </div>
+                      {contact.hasUnread && (
+                        <div className="bg-primary-500 rounded-full h-2 w-2"></div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10">
+                    <p className="text-gray-500">No contacts found.</p>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -96,42 +255,59 @@ const Messages = () => {
               <div className="hidden md:flex flex-col flex-1">
                 {/* Chat header */}
                 <div className="p-4 border-b border-gray-200 flex items-center">
-                  <img 
-                    src={filteredContacts.find(c => c.id === activeChat)?.image || ''} 
-                    alt="Contact" 
-                    className="h-10 w-10 rounded-full object-cover mr-3"
-                  />
-                  <div>
-                    <h3 className="font-medium">{filteredContacts.find(c => c.id === activeChat)?.name}</h3>
-                    <p className="text-xs text-gray-500">
-                      {filteredContacts.find(c => c.id === activeChat)?.location}
-                    </p>
-                  </div>
+                  {activeContact && (
+                    <>
+                      <img 
+                        src={activeContact.image} 
+                        alt={activeContact.name} 
+                        className="h-10 w-10 rounded-full object-cover mr-3"
+                      />
+                      <div>
+                        <h3 className="font-medium">{activeContact.name}</h3>
+                        <p className="text-xs text-gray-500">
+                          {activeContact.location}
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {chatMessages.map(msg => (
-                    <div 
-                      key={msg.id} 
-                      className={`flex ${msg.sender === 'me' ? 'justify-end' : ''}`}
-                    >
-                      <div 
-                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          msg.sender === 'me' 
-                            ? 'bg-primary-100 text-primary-900' 
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
-                      >
-                        <p>{msg.text}</p>
-                        <p className={`text-xs mt-1 ${
-                          msg.sender === 'me' 
-                            ? 'text-primary-600' 
-                            : 'text-gray-500'
-                        }`}>{msg.time}</p>
-                      </div>
+                  {isLoadingMessages ? (
+                    <div className="flex justify-center items-center h-full">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <span className="ml-2">Loading messages...</span>
                     </div>
-                  ))}
+                  ) : messages.length > 0 ? (
+                    messages.map(msg => (
+                      <div 
+                        key={msg.id} 
+                        className={`flex ${msg.sender_id === user.id ? 'justify-end' : ''}`}
+                      >
+                        <div 
+                          className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                            msg.sender_id === user.id 
+                              ? 'bg-primary-100 text-primary-900' 
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
+                        >
+                          <p>{msg.text}</p>
+                          <p className={`text-xs mt-1 ${
+                            msg.sender_id === user.id 
+                              ? 'text-primary-600' 
+                              : 'text-gray-500'
+                          }`}>
+                            {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10">
+                      <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Message input */}

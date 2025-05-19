@@ -9,13 +9,36 @@ import { Filter, Settings, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from '@/components/ui/label';
-import { crops } from '@/data/crops';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { Constants } from '@/integrations/supabase/types';
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  location: string | null;
+  role: string;
+  skills: string[] | null;
+  experience: number | null;
+  rating: number | null;
+}
+
+interface SearchResult {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  role: 'laborer' | 'farmer';
+  skills?: string[];
+  crops?: string[];
+  rating: number;
+  experience?: number;
+}
 
 const Search = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [userRole, setUserRole] = useState<'farmer' | 'laborer' | null>(null);
   const [searchTarget, setSearchTarget] = useState<'laborers' | 'farmers'>('laborers');
   const [searchFilters, setSearchFilters] = useState({
     keyword: '',
@@ -23,74 +46,114 @@ const Search = () => {
     category: '',
     season: '',
     distance: 50,
-    experience: 0
+    experience: 0,
+    location: ''
   });
-  const [filteredResults, setFilteredResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Fetch search results when filters change
+  // Fetch user's role when component mounts
   useEffect(() => {
-    const fetchResults = async () => {
-      setIsLoading(true);
-      setError(null);
+    if (user) {
+      fetchUserRole();
+    }
+  }, [user]);
+  
+  // Set search target based on user's role
+  useEffect(() => {
+    if (userRole === 'farmer') {
+      setSearchTarget('laborers');
+    } else if (userRole === 'laborer') {
+      setSearchTarget('farmers');
+    }
+  }, [userRole]);
+  
+  // Fetch search results when filters change or search target changes
+  useEffect(() => {
+    if (searchTarget) {
+      performSearch();
+    }
+  }, [searchFilters, searchTarget]);
+  
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
       
-      try {
-        // Call our enhanced search function
-        const { data, error } = await supabase.functions.invoke('enhance-search', {
-          body: {
-            filters: searchFilters,
-            searchTarget
-          }
-        });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-        
-        console.log('Search results:', data);
-        
-        // If we have data, process it
-        if (data && data.data) {
-          // Transform the data to match our ProfileCard component expectations
-          const processedResults = data.data.map(profile => ({
-            id: profile.id,
-            name: profile.full_name || 'Unnamed User',
-            location: profile.location || 'Unknown Location',
-            // Using a placeholder image for now - in production, you'd have a user_avatar field
-            image: `/avatars/${searchTarget === 'laborers' ? 'laborer' : 'farmer'}${Math.floor(Math.random() * 5) + 1}.jpg`,
-            rating: Math.floor(Math.random() * 5) + 1, // Placeholder rating
-            skills: profile.skills ? JSON.parse(profile.skills) : [],
-            crops: profile.crops ? JSON.parse(profile.crops) : [],
-            experience: profile.experience || 0
-          }));
-          
-          setFilteredResults(processedResults);
-        } else {
-          setFilteredResults([]);
-        }
-      } catch (err) {
-        console.error('Error fetching search results:', err);
-        setError('Failed to fetch results. Please try again later.');
-        toast({
-          title: "Search Error",
-          description: "There was a problem with your search. Please try again.",
-          variant: "destructive",
-        });
-        
-        // Fall back to mock data if API fails
-        import('@/data/mockData').then(({ farmers, laborers }) => {
-          const mockData = searchTarget === 'laborers' ? laborers : farmers;
-          setFilteredResults(mockData);
-        });
-      } finally {
-        setIsLoading(false);
+      if (error) throw error;
+      
+      if (data && (data.role === 'farmer' || data.role === 'laborer')) {
+        setUserRole(data.role);
       }
-    };
-
-    // Only fetch if we have at least basic filter criteria
-    fetchResults();
-  }, [searchFilters, searchTarget, toast]);
+    } catch (err) {
+      console.error('Error fetching user role:', err);
+    }
+  };
+  
+  const performSearch = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const role = searchTarget === 'laborers' ? 'laborer' : 'farmer';
+      
+      let query = supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', role);
+      
+      // Apply filters
+      if (searchFilters.keyword) {
+        query = query.or(`full_name.ilike.%${searchFilters.keyword}%,location.ilike.%${searchFilters.keyword}%`);
+      }
+      
+      if (searchFilters.location) {
+        query = query.ilike('location', `%${searchFilters.location}%`);
+      }
+      
+      // For skill/crop based searches, we would need a more complex query or a specialized function
+      // This is simplified for the example
+      if (searchFilters.experience > 0) {
+        query = query.gte('experience', searchFilters.experience);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      // Transform the data to match our SearchResult interface
+      const processed: SearchResult[] = (data || []).map(profile => ({
+        id: profile.id,
+        name: profile.full_name || 'Unnamed User',
+        location: profile.location || 'Unknown Location',
+        image: `/avatars/${role}${Math.floor(Math.random() * 5) + 1}.jpg`,
+        role: role as 'farmer' | 'laborer',
+        skills: role === 'laborer' ? (profile.skills as string[] || []) : undefined,
+        crops: role === 'farmer' ? (profile.skills as string[] || []) : undefined,
+        rating: profile.rating || 0,
+        experience: role === 'laborer' ? profile.experience : undefined
+      }));
+      
+      setSearchResults(processed);
+    } catch (err) {
+      console.error('Error performing search:', err);
+      setError('Failed to perform search. Please try again.');
+      toast({
+        title: "Search Error",
+        description: "There was a problem with your search. Please try again.",
+        variant: "destructive",
+      });
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleConnect = (id: string) => {
     toast({
@@ -108,7 +171,6 @@ const Search = () => {
   
   const handleSearch = (filters: any) => {
     setSearchFilters(filters);
-    console.log('Searching with filters:', filters);
   };
   
   return (
@@ -120,29 +182,49 @@ const Search = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h1 className="text-2xl font-bold mb-6">Find the Perfect Match</h1>
             
-            <div className="mb-6">
-              <RadioGroup 
-                value={searchTarget} 
-                onValueChange={(value) => setSearchTarget(value as 'laborers' | 'farmers')}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="laborers" id="laborers" />
-                  <Label htmlFor="laborers">Find Laborers</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="farmers" id="farmers" />
-                  <Label htmlFor="farmers">Find Farmers</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            {user && userRole ? (
+              <div className="mb-6">
+                <p className="mb-2">You are searching as a {userRole}:</p>
+                <RadioGroup 
+                  value={searchTarget} 
+                  onValueChange={(value) => setSearchTarget(value as 'laborers' | 'farmers')}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="laborers" id="laborers" />
+                    <Label htmlFor="laborers">Find Laborers</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="farmers" id="farmers" />
+                    <Label htmlFor="farmers">Find Farmers</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <RadioGroup 
+                  value={searchTarget} 
+                  onValueChange={(value) => setSearchTarget(value as 'laborers' | 'farmers')}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="laborers" id="laborers" />
+                    <Label htmlFor="laborers">Find Laborers</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="farmers" id="farmers" />
+                    <Label htmlFor="farmers">Find Farmers</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
             
             <SearchFilters onSearch={handleSearch} />
           </div>
           
           <div className="mb-4 flex justify-between items-center">
             <h2 className="text-xl font-semibold">
-              {isLoading ? 'Searching...' : `${filteredResults.length} ${searchTarget} found`}
+              {isLoading ? 'Searching...' : `${searchResults.length} ${searchTarget} found`}
             </h2>
             <Button variant="outline" size="sm" disabled>
               <Settings size={16} className="mr-2" /> Advanced Filters
@@ -164,14 +246,14 @@ const Search = () => {
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => handleSearch(searchFilters)}
+                onClick={() => performSearch()}
               >
                 Try Again
               </Button>
             </div>
-          ) : filteredResults.length > 0 ? (
+          ) : searchResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredResults.map(profile => {
+              {searchResults.map(profile => {
                 // Determine skills or crops based on search target
                 const skills = searchTarget === 'laborers' ? profile.skills : undefined;
                 const crops = searchTarget === 'farmers' ? profile.crops : undefined;
