@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
@@ -47,7 +46,8 @@ const Search = () => {
     season: '',
     distance: 50,
     experience: 0,
-    location: ''
+    location: '',
+    preferred_work_type: 'any-work-type'
   });
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,8 +117,18 @@ const Search = () => {
         query = query.ilike('location', `%${searchFilters.location}%`);
       }
       
-      // For skill/crop based searches, we would need a more complex query or a specialized function
-      // This is simplified for the example
+      // For crop based searches, only apply if it's not the "all-crops" value
+      if (searchFilters.crop && searchFilters.crop !== 'all-crops') {
+        // Adjust this query based on how crops are stored in your database
+        // This is a simplified example
+        query = query.contains('skills', [searchFilters.crop]);
+      }
+      
+      // For work type based searches, only apply if it's not the "any-work-type" value
+      if (searchFilters.preferred_work_type && searchFilters.preferred_work_type !== 'any-work-type') {
+        query = query.eq('preferred_work_type', searchFilters.preferred_work_type);
+      }
+      
       if (searchFilters.experience > 0) {
         query = query.gte('experience', searchFilters.experience);
       }

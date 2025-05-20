@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -84,11 +83,11 @@ const Jobs = () => {
         .eq('status', 'open');
       
       // Apply filters
-      if (cropFilter && isValidCropCategory(cropFilter)) {
+      if (cropFilter && isValidCropCategory(cropFilter) && cropFilter !== 'all-crops') {
         query = query.eq('crop_category', cropFilter);
       }
       
-      if (laborTypeFilter && isValidLaborType(laborTypeFilter)) {
+      if (laborTypeFilter && isValidLaborType(laborTypeFilter) && laborTypeFilter !== 'any-work-type') {
         query = query.eq('labor_type', laborTypeFilter);
       }
       

@@ -110,13 +110,13 @@ const SearchFilters = ({ onSearch, targetRole, initialFilters = {} }: SearchFilt
           <Label htmlFor="crop">Crop Type</Label>
           <Select 
             onValueChange={(value) => setValue('crop', value)}
-            defaultValue=""
+            defaultValue={initialFilters.crop || "all-crops"}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select crop type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Crops</SelectItem>
+              <SelectItem value="all-crops">All Crops</SelectItem>
               {crops.map((crop) => (
                 <SelectItem key={crop.id} value={crop.id}>
                   {crop.name}
@@ -133,13 +133,13 @@ const SearchFilters = ({ onSearch, targetRole, initialFilters = {} }: SearchFilt
               <Label htmlFor="preferred_work_type">Work Type</Label>
               <Select 
                 onValueChange={(value) => setValue('preferred_work_type', value)}
-                defaultValue=""
+                defaultValue={initialFilters.preferred_work_type || "any-work-type"}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Any work type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any work type</SelectItem>
+                  <SelectItem value="any-work-type">Any work type</SelectItem>
                   {workTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
@@ -170,7 +170,7 @@ const SearchFilters = ({ onSearch, targetRole, initialFilters = {} }: SearchFilt
                 min={0}
                 max={20}
                 step={1}
-                defaultValue={[0]}
+                defaultValue={[initialFilters.experience || 0]}
                 onValueChange={(values) => setValue('experience', values[0])}
               />
             </div>
