@@ -1,47 +1,44 @@
+
 import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import SearchFilters from '@/components/SearchFilters';
-import ProfileCard from '@/components/ProfileCard';
-import { useToast } from '@/hooks/use-toast';
-import { Filter, Settings, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Constants } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, Phone, MapPin, Briefcase, Clock, Calendar } from 'lucide-react';
 
-interface Profile {
+// Type definitions
+type SearchResult = {
   id: string;
   full_name: string | null;
-  location: string | null;
   role: string;
-  skills: string[] | null;
+  phone: string | null;
+  location: string | null;
   experience: number | null;
-  rating: number | null;
-}
-
-interface SearchResult {
-  id: string;
-  name: string;
-  location: string;
-  image: string;
-  role: 'laborer' | 'farmer';
-  skills?: string[];
-  crops?: string[];
-  rating: number;
-  experience?: number;
-}
+  created_at: string;
+  updated_at: string;
+  skills: any;
+};
 
 const Search = () => {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const [userRole, setUserRole] = useState<'farmer' | 'laborer' | null>(null);
-  const [searchTarget, setSearchTarget] = useState<'laborers' | 'farmers'>('laborers');
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [searchFilters, setSearchFilters] = useState({
     keyword: '',
-    crop: '',
+    crop: 'all-crops',
     category: '',
     season: '',
     distance: 50,
@@ -51,30 +48,15 @@ const Search = () => {
   });
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
   
-  // Fetch user's role when component mounts
   useEffect(() => {
     if (user) {
       fetchUserRole();
+    } else {
+      setShowRoleSelector(true);
     }
   }, [user]);
-  
-  // Set search target based on user's role
-  useEffect(() => {
-    if (userRole === 'farmer') {
-      setSearchTarget('laborers');
-    } else if (userRole === 'laborer') {
-      setSearchTarget('farmers');
-    }
-  }, [userRole]);
-  
-  // Fetch search results when filters change or search target changes
-  useEffect(() => {
-    if (searchTarget) {
-      performSearch();
-    }
-  }, [searchFilters, searchTarget]);
   
   const fetchUserRole = async () => {
     if (!user) return;
@@ -88,212 +70,199 @@ const Search = () => {
       
       if (error) throw error;
       
-      if (data && (data.role === 'farmer' || data.role === 'laborer')) {
-        setUserRole(data.role);
-      }
+      setUserRole(data.role);
     } catch (err) {
       console.error('Error fetching user role:', err);
+      setShowRoleSelector(true);
     }
   };
   
-  const performSearch = async () => {
+  const searchTargetRole = userRole === 'farmer' ? 'laborer' : 'farmer';
+  
+  const handleSearch = async (filters: any) => {
+    setSearchFilters(filters);
     setIsLoading(true);
-    setError(null);
     
     try {
-      const role = searchTarget === 'laborers' ? 'laborer' : 'farmer';
+      // Determine search target based on user role
+      const targetRole = userRole === 'farmer' ? 'laborer' : 'farmer';
       
+      // Basic query to get user profiles of the target role
       let query = supabase
         .from('profiles')
         .select('*')
-        .eq('role', role);
+        .eq('role', targetRole);
       
       // Apply filters
-      if (searchFilters.keyword) {
-        query = query.or(`full_name.ilike.%${searchFilters.keyword}%,location.ilike.%${searchFilters.keyword}%`);
+      if (filters.keyword) {
+        query = query.or(`full_name.ilike.%${filters.keyword}%,skills->bio.ilike.%${filters.keyword}%`);
       }
       
-      if (searchFilters.location) {
-        query = query.ilike('location', `%${searchFilters.location}%`);
+      if (filters.location) {
+        query = query.ilike('location', `%${filters.location}%`);
       }
       
       // For crop based searches, only apply if it's not the "all-crops" value
-      if (searchFilters.crop && searchFilters.crop !== 'all-crops') {
-        // Adjust this query based on how crops are stored in your database
-        // This is a simplified example
-        query = query.contains('skills', [searchFilters.crop]);
+      if (filters.crop && filters.crop !== 'all-crops') {
+        // Using containment operator for JSONB array
+        query = query.contains('skills', { crops: [filters.crop] });
       }
       
       // For work type based searches, only apply if it's not the "any-work-type" value
-      if (searchFilters.preferred_work_type && searchFilters.preferred_work_type !== 'any-work-type') {
-        query = query.eq('preferred_work_type', searchFilters.preferred_work_type);
+      if (filters.preferred_work_type && filters.preferred_work_type !== 'any-work-type') {
+        // Using containment operator for JSONB array
+        query = query.contains('skills', { work_types: [filters.preferred_work_type.toLowerCase()] });
       }
       
-      if (searchFilters.experience > 0) {
-        query = query.gte('experience', searchFilters.experience);
+      if (filters.experience && filters.experience > 0) {
+        query = query.gte('experience', filters.experience);
+      }
+      
+      if (filters.can_relocate === true) {
+        query = query.eq('skills->>will_relocate', 'true');
       }
       
       const { data, error } = await query;
-      
+
       if (error) throw error;
       
-      // Transform the data to match our SearchResult interface
-      const processed: SearchResult[] = (data || []).map(profile => ({
-        id: profile.id,
-        name: profile.full_name || 'Unnamed User',
-        location: profile.location || 'Unknown Location',
-        image: `/avatars/${role}${Math.floor(Math.random() * 5) + 1}.jpg`,
-        role: role as 'farmer' | 'laborer',
-        skills: role === 'laborer' ? (profile.skills as string[] || []) : undefined,
-        crops: role === 'farmer' ? (profile.skills as string[] || []) : undefined,
-        rating: profile.rating || 0,
-        experience: role === 'laborer' ? profile.experience : undefined
-      }));
-      
-      setSearchResults(processed);
-    } catch (err) {
-      console.error('Error performing search:', err);
-      setError('Failed to perform search. Please try again.');
-      toast({
-        title: "Search Error",
-        description: "There was a problem with your search. Please try again.",
-        variant: "destructive",
-      });
-      setSearchResults([]);
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error('Error performing search:', error);
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleConnect = (id: string) => {
-    toast({
-      title: "Connection Request Sent",
-      description: "They will be notified of your interest.",
-    });
+  const handleViewProfile = (profileId: string) => {
+    navigate(`/profile/${profileId}`);
   };
   
-  const handleMessage = (id: string) => {
-    toast({
-      title: "Message sent",
-      description: "Your message has been sent.",
-    });
+  const getCropNames = (skills: any) => {
+    if (!skills || !skills.crops || !Array.isArray(skills.crops)) return 'N/A';
+    
+    return skills.crops.slice(0, 3).map((cropId: string) => {
+      const crop = cropId;
+      return crop;
+    }).join(', ') + (skills.crops.length > 3 ? '...' : '');
   };
-  
-  const handleSearch = (filters: any) => {
-    setSearchFilters(filters);
+
+  const getWorkTypes = (skills: any) => {
+    if (!skills || !skills.work_types || !Array.isArray(skills.work_types)) return 'N/A';
+    
+    return skills.work_types.slice(0, 2).map((type: string) => {
+      return type.charAt(0).toUpperCase() + type.slice(1);
+    }).join(', ') + (skills.work_types.length > 2 ? '...' : '');
   };
   
   return (
     <div className="flex flex-col min-h-screen">
       <NavBar />
       
-      <main className="flex-1 bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h1 className="text-2xl font-bold mb-6">Find the Perfect Match</h1>
-            
-            {user && userRole ? (
-              <div className="mb-6">
-                <p className="mb-2">You are searching as a {userRole}:</p>
-                <RadioGroup 
-                  value={searchTarget} 
-                  onValueChange={(value) => setSearchTarget(value as 'laborers' | 'farmers')}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="laborers" id="laborers" />
-                    <Label htmlFor="laborers">Find Laborers</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="farmers" id="farmers" />
-                    <Label htmlFor="farmers">Find Farmers</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <RadioGroup 
-                  value={searchTarget} 
-                  onValueChange={(value) => setSearchTarget(value as 'laborers' | 'farmers')}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="laborers" id="laborers" />
-                    <Label htmlFor="laborers">Find Laborers</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="farmers" id="farmers" />
-                    <Label htmlFor="farmers">Find Farmers</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-            
-            <SearchFilters onSearch={handleSearch} />
-          </div>
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-4">
+            Find {searchTargetRole === 'laborer' ? 'Farm Workers' : 'Farmer Jobs'}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {searchTargetRole === 'laborer' 
+              ? 'Search for skilled agricultural laborers based on crops, location, and more.'
+              : 'Find farming opportunities and connect with local farmers.'
+            }
+          </p>
           
-          <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-xl font-semibold">
-              {isLoading ? 'Searching...' : `${searchResults.length} ${searchTarget} found`}
-            </h2>
-            <Button variant="outline" size="sm" disabled>
-              <Settings size={16} className="mr-2" /> Advanced Filters
-            </Button>
-          </div>
-          
+          <SearchFilters 
+            onSearch={handleSearch}
+            targetRole={searchTargetRole}
+            initialFilters={searchFilters}
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
           {isLoading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <span className="ml-3 text-xl text-gray-600">Searching for matches...</span>
+            <div className="col-span-full flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Searching...</span>
             </div>
-          ) : error ? (
-            <div className="text-center py-16 bg-white rounded-lg shadow-md">
-              <div className="text-red-500 mb-4">
-                <Filter size={48} className="mx-auto" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">Error fetching results</h3>
-              <p className="mt-2 text-gray-600">{error}</p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => performSearch()}
-              >
-                Try Again
-              </Button>
-            </div>
-          ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {searchResults.map(profile => {
-                // Determine skills or crops based on search target
-                const skills = searchTarget === 'laborers' ? profile.skills : undefined;
-                const crops = searchTarget === 'farmers' ? profile.crops : undefined;
-                const experience = searchTarget === 'laborers' ? profile.experience : undefined;
-                
-                return (
-                  <ProfileCard
-                    key={profile.id}
-                    name={profile.name}
-                    location={profile.location}
-                    image={profile.image}
-                    role={searchTarget === 'laborers' ? 'laborer' : 'farmer'}
-                    skills={skills}
-                    crops={crops}
-                    rating={profile.rating}
-                    experience={experience}
-                    onConnect={() => handleConnect(profile.id)}
-                    onMessage={() => handleMessage(profile.id)}
-                  />
-                );
-              })}
+          ) : searchResults.length === 0 ? (
+            <div className="col-span-full bg-gray-50 p-8 text-center rounded-lg">
+              <h3 className="text-xl font-medium text-gray-700">No results found</h3>
+              <p className="text-gray-500 mt-2">Try adjusting your search filters</p>
             </div>
           ) : (
-            <div className="text-center py-16 bg-white rounded-lg shadow-md">
-              <div className="text-gray-400 mb-4">
-                <Filter size={48} className="mx-auto" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">No results found</h3>
-              <p className="mt-2 text-gray-600">Try adjusting your search filters</p>
-            </div>
+            <>
+              {searchResults.map(result => (
+                <Card key={result.id} className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={`/avatars/${result.role}${Math.floor(Math.random() * 5) + 1}.jpg`} alt={result.full_name || ''} />
+                        <AvatarFallback>{(result.full_name || '?').charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-lg">{result.full_name || 'Anonymous User'}</CardTitle>
+                        <CardDescription>
+                          <div className="flex items-center">
+                            <MapPin className="h-3.5 w-3.5 mr-1 text-gray-500" />
+                            {result.location || 'Location not specified'}
+                          </div>
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pb-2">
+                    {result.role === 'laborer' ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center text-sm">
+                          <Briefcase className="h-4 w-4 mr-2 text-gray-500" />
+                          <span className="mr-1 text-gray-700">Experience:</span>
+                          <span>{result.experience || 0} years</span>
+                        </div>
+                        
+                        <div className="flex items-center text-sm">
+                          <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                          <span className="mr-1 text-gray-700">Crops:</span>
+                          <span>{getCropNames(result.skills)}</span>
+                        </div>
+                        
+                        <div className="flex items-center text-sm">
+                          <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                          <span className="mr-1 text-gray-700">Work Type:</span>
+                          <span>{getWorkTypes(result.skills)}</span>
+                        </div>
+                        
+                        {result.skills?.will_relocate && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 mt-2">
+                            ✓ Can Relocate
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center text-sm">
+                          <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                          <span className="mr-1 text-gray-700">Crops:</span>
+                          <span>{getCropNames(result.skills)}</span>
+                        </div>
+                        
+                        {result.skills?.farming_type && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            {result.skills.farming_type} farming
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                  
+                  <CardFooter className="pt-4">
+                    <Button onClick={() => handleViewProfile(result.id)} className="w-full">
+                      View Profile
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </>
           )}
         </div>
       </main>

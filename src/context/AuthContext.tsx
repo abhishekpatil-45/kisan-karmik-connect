@@ -77,12 +77,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // If user has a role assigned but lacks details, redirect to profile setup
-      if (profile && (!profile.phone || !profile.location)) {
-        navigate(`/profile-setup?role=${profile.role}`);
-      } else if (profile) {
-        // If profile is complete, redirect to dashboard
-        navigate('/dashboard');
+      // If user has a role assigned but lacks details, redirect to appropriate profile setup
+      if (profile) {
+        if (!profile.phone || !profile.location) {
+          // Redirect to the role-specific profile setup page
+          navigate(`/profile-setup?role=${profile.role}`);
+        } else {
+          // If profile is complete, redirect to dashboard
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Error checking profile completion:', error);
@@ -117,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // FIX: Ensure role is correctly passed to user metadata
+      // Ensure role is correctly passed to user metadata
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,

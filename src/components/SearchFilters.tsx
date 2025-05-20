@@ -36,13 +36,13 @@ const SearchFilters = ({ onSearch, targetRole, initialFilters = {} }: SearchFilt
   const { register, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
       keyword: initialFilters.keyword || '',
-      crop: initialFilters.crop || '',
+      crop: initialFilters.crop || 'all-crops',
       category: initialFilters.category || '',
       season: initialFilters.season || '',
       distance: initialFilters.distance || 50,
       experience: initialFilters.experience || 0,
       location: initialFilters.location || '',
-      preferred_work_type: initialFilters.preferred_work_type || '',
+      preferred_work_type: initialFilters.preferred_work_type || 'any-work-type',
       can_relocate: initialFilters.can_relocate || false
     }
   });

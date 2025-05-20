@@ -31,11 +31,12 @@ const ProfileSetup = () => {
   
   // Extract role from URL params
   const searchParams = new URLSearchParams(location.search);
-  const role = searchParams.get('role') || 'farmer';
+  const roleParam = searchParams.get('role');
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
   // Farmer profile states
   const [farmSize, setFarmSize] = useState('');
@@ -56,6 +57,7 @@ const ProfileSetup = () => {
   const [laborerLanguages, setLaborerLanguages] = useState<string[]>([]);
   const [laborerPhone, setLaborerPhone] = useState('');
   const [laborerLocation, setLaborerLocation] = useState('');
+  const [preferredWorkTypes, setPreferredWorkTypes] = useState<string[]>([]);
 
   const languages = [
     { id: 'hindi', name: 'Hindi' },
@@ -68,6 +70,14 @@ const ProfileSetup = () => {
     { id: 'marathi', name: 'Marathi' },
     { id: 'gujarati', name: 'Gujarati' },
     { id: 'urdu', name: 'Urdu' }
+  ];
+
+  const workTypes = [
+    { id: 'seasonal', name: 'Seasonal' },
+    { id: 'full-time', name: 'Full-time' },
+    { id: 'part-time', name: 'Part-time' },
+    { id: 'contract', name: 'Contract' },
+    { id: 'daily-wage', name: 'Daily wage' }
   ];
 
   // Load user profile data
@@ -88,16 +98,40 @@ const ProfileSetup = () => {
         if (error) throw error;
 
         setUserProfile(data);
+        setUserRole(data.role);
+        
+        // If URL param doesn't match user's actual role, redirect with the correct role
+        if (roleParam !== data.role) {
+          navigate(`/profile-setup?role=${data.role}`, { replace: true });
+          return;
+        }
         
         if (data.role === 'farmer') {
           if (data.phone) setFarmerPhone(data.phone);
           if (data.location) setFarmerLocation(data.location);
+          // Load additional farmer profile data if available
+          if (data.skills && typeof data.skills === 'object') {
+            if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops);
+            if (data.skills.farming_type) setFarmingType(data.skills.farming_type);
+            if (data.skills.farm_size) setFarmSize(data.skills.farm_size);
+            if (data.skills.bio) setFarmerBio(data.skills.bio);
+            if (data.skills.languages) setFarmerLanguages(data.skills.languages);
+          }
         } else if (data.role === 'laborer') {
           if (data.phone) setLaborerPhone(data.phone);
           if (data.location) setLaborerLocation(data.location);
+          if (data.experience) setExperience(data.experience.toString());
+          // Load additional laborer profile data if available
+          if (data.skills && typeof data.skills === 'object') {
+            if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops);
+            if (data.skills.availability) setAvailability(data.skills.availability);
+            if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate);
+            if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation);
+            if (data.skills.bio) setLaborerBio(data.skills.bio);
+            if (data.skills.languages) setLaborerLanguages(data.skills.languages);
+            if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types);
+          }
         }
-        
-        // Load additional profile data in the future if needed
         
       } catch (error) {
         console.error('Error loading user profile:', error);
@@ -112,7 +146,7 @@ const ProfileSetup = () => {
     };
 
     fetchUserProfile();
-  }, [user, toast]);
+  }, [user, toast, navigate, roleParam]);
 
   const handleFarmerCropToggle = (cropId: string) => {
     setSelectedFarmerCrops(prev => 
@@ -140,6 +174,14 @@ const ProfileSetup = () => {
     );
   };
 
+  const handleWorkTypeToggle = (typeId: string) => {
+    setPreferredWorkTypes(prev => 
+      prev.includes(typeId) 
+        ? prev.filter(id => id !== typeId)
+        : [...prev, typeId]
+    );
+  };
+
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -156,28 +198,24 @@ const ProfileSetup = () => {
     try {
       setIsSubmitting(true);
       
-      // Update basic profile information in the profiles table
+      // Update profile with basic and farmer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           phone: farmerPhone,
           location: farmerLocation,
+          skills: {
+            crops: selectedFarmerCrops,
+            farming_type: farmingType,
+            farm_size: farmSize,
+            bio: farmerBio,
+            languages: farmerLanguages
+          },
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
         
       if (profileError) throw profileError;
-      
-      // In a real app, save additional farmer profile data to another table
-      // For example:
-      // await supabase.from('farmer_details').upsert({
-      //   user_id: user.id,
-      //   farm_size: farmSize,
-      //   farming_type: farmingType,
-      //   crops: selectedFarmerCrops,
-      //   bio: farmerBio,
-      //   languages: farmerLanguages
-      // });
       
       toast({
         title: "Profile updated!",
@@ -214,30 +252,27 @@ const ProfileSetup = () => {
     try {
       setIsSubmitting(true);
       
-      // Update basic profile information in the profiles table
+      // Update profile with basic and laborer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           phone: laborerPhone,
           location: laborerLocation,
+          experience: parseInt(experience) || 0,
+          skills: {
+            crops: selectedLaborerCrops,
+            availability: availability,
+            will_relocate: willRelocate,
+            wage_expectation: wageExpectation,
+            bio: laborerBio,
+            languages: laborerLanguages,
+            work_types: preferredWorkTypes
+          },
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
         
       if (profileError) throw profileError;
-      
-      // In a real app, save additional laborer profile data to another table
-      // For example:
-      // await supabase.from('laborer_details').upsert({
-      //   user_id: user.id,
-      //   experience: experience,
-      //   crops: selectedLaborerCrops,
-      //   availability: availability,
-      //   will_relocate: willRelocate,
-      //   wage_expectation: wageExpectation,
-      //   bio: laborerBio,
-      //   languages: laborerLanguages
-      // });
       
       toast({
         title: "Profile updated!",
@@ -267,6 +302,9 @@ const ProfileSetup = () => {
     );
   }
 
+  // Determine if we're showing farmer or laborer form
+  const isLaborer = userRole === 'laborer';
+
   return (
     <ProtectedRoute>
       <div className="flex flex-col min-h-screen">
@@ -276,10 +314,156 @@ const ProfileSetup = () => {
           <div className="container mx-auto max-w-3xl">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h1 className="text-2xl font-bold mb-6">
-                Complete Your {role === 'farmer' ? 'Farmer' : 'Laborer'} Profile
+                Complete Your {isLaborer ? 'Laborer' : 'Farmer'} Profile
               </h1>
               
-              {userProfile && userProfile.role === 'farmer' ? (
+              {isLaborer ? (
+                <form onSubmit={handleLaborerSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="laborer-phone" className="font-medium">Phone Number <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="laborer-phone" 
+                      type="tel" 
+                      placeholder="Your phone number" 
+                      value={laborerPhone}
+                      onChange={(e) => setLaborerPhone(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="laborer-location" className="font-medium">Location <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="laborer-location" 
+                      placeholder="Village, District, State" 
+                      value={laborerLocation}
+                      onChange={(e) => setLaborerLocation(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                
+                  <div className="space-y-2">
+                    <Label htmlFor="experience">Years of Experience in Agriculture</Label>
+                    <Input 
+                      id="experience" 
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={experience}
+                      onChange={(e) => setExperience(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label>Crops You Have Experience With (Select all that apply)</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {crops.map(crop => (
+                        <div key={crop.id} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`crop-${crop.id}`} 
+                            checked={selectedLaborerCrops.includes(crop.id)}
+                            onCheckedChange={() => handleLaborerCropToggle(crop.id)}
+                            disabled={isSubmitting}
+                          />
+                          <Label htmlFor={`crop-${crop.id}`} className="text-sm">{crop.name}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label>Preferred Work Type (Select all that apply)</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {workTypes.map(type => (
+                        <div key={type.id} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`work-type-${type.id}`} 
+                            checked={preferredWorkTypes.includes(type.id)}
+                            onCheckedChange={() => handleWorkTypeToggle(type.id)}
+                            disabled={isSubmitting}
+                          />
+                          <Label htmlFor={`work-type-${type.id}`} className="text-sm">{type.name}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="availability">Availability</Label>
+                    <Select value={availability} onValueChange={setAvailability}>
+                      <SelectTrigger id="availability" disabled={isSubmitting}>
+                        <SelectValue placeholder="Select your availability" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="year-round">Year-round</SelectItem>
+                        <SelectItem value="seasonal">Seasonal</SelectItem>
+                        <SelectItem value="weekends">Weekends only</SelectItem>
+                        <SelectItem value="part-time">Part-time</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="relocate" 
+                      checked={willRelocate}
+                      onCheckedChange={(checked) => setWillRelocate(checked as boolean)}
+                      disabled={isSubmitting}
+                    />
+                    <Label htmlFor="relocate">I am willing to relocate for work</Label>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="wage">Daily Wage Expectation (in ₹)</Label>
+                    <Input 
+                      id="wage" 
+                      type="text"
+                      placeholder="e.g., ₹500/day"
+                      value={wageExpectation}
+                      onChange={(e) => setWageExpectation(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label>Languages Spoken</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {languages.map(language => (
+                        <div key={language.id} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`lang-${language.id}`} 
+                            checked={laborerLanguages.includes(language.id)}
+                            onCheckedChange={() => handleLanguageToggle(language.id, true)}
+                            disabled={isSubmitting}
+                          />
+                          <Label htmlFor={`lang-${language.id}`} className="text-sm">{language.name}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="laborer-bio">About Your Experience</Label>
+                    <Textarea 
+                      id="laborer-bio" 
+                      placeholder="Describe your agricultural skills and experience..." 
+                      value={laborerBio}
+                      onChange={(e) => setLaborerBio(e.target.value)}
+                      className="min-h-[120px]"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                    ) : 'Complete Laborer Profile'}
+                  </Button>
+                </form>
+              ) : (
                 <form onSubmit={handleFarmerSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="farmer-phone" className="font-medium">Phone Number <span className="text-red-500">*</span></Label>
@@ -391,135 +575,6 @@ const ProfileSetup = () => {
                     {isSubmitting ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
                     ) : 'Complete Farmer Profile'}
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={handleLaborerSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="laborer-phone" className="font-medium">Phone Number <span className="text-red-500">*</span></Label>
-                    <Input 
-                      id="laborer-phone" 
-                      type="tel" 
-                      placeholder="Your phone number" 
-                      value={laborerPhone}
-                      onChange={(e) => setLaborerPhone(e.target.value)}
-                      required
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="laborer-location" className="font-medium">Location <span className="text-red-500">*</span></Label>
-                    <Input 
-                      id="laborer-location" 
-                      placeholder="Village, District, State" 
-                      value={laborerLocation}
-                      onChange={(e) => setLaborerLocation(e.target.value)}
-                      required
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                
-                  <div className="space-y-2">
-                    <Label htmlFor="experience">Years of Experience in Agriculture</Label>
-                    <Input 
-                      id="experience" 
-                      type="number"
-                      min="0"
-                      max="60"
-                      value={experience}
-                      onChange={(e) => setExperience(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label>Crops You Have Experience With (Select all that apply)</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {crops.map(crop => (
-                        <div key={crop.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`crop-${crop.id}`} 
-                            checked={selectedLaborerCrops.includes(crop.id)}
-                            onCheckedChange={() => handleLaborerCropToggle(crop.id)}
-                            disabled={isSubmitting}
-                          />
-                          <Label htmlFor={`crop-${crop.id}`} className="text-sm">{crop.name}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="availability">Availability</Label>
-                    <Select value={availability} onValueChange={setAvailability}>
-                      <SelectTrigger id="availability" disabled={isSubmitting}>
-                        <SelectValue placeholder="Select your availability" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="year-round">Year-round</SelectItem>
-                        <SelectItem value="seasonal">Seasonal</SelectItem>
-                        <SelectItem value="weekends">Weekends only</SelectItem>
-                        <SelectItem value="part-time">Part-time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="relocate" 
-                      checked={willRelocate}
-                      onCheckedChange={(checked) => setWillRelocate(checked as boolean)}
-                      disabled={isSubmitting}
-                    />
-                    <Label htmlFor="relocate">I am willing to relocate for work</Label>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="wage">Daily Wage Expectation (in ₹)</Label>
-                    <Input 
-                      id="wage" 
-                      type="text"
-                      placeholder="e.g., ₹500/day"
-                      value={wageExpectation}
-                      onChange={(e) => setWageExpectation(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label>Languages Spoken</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {languages.map(language => (
-                        <div key={language.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`lang-${language.id}`} 
-                            checked={laborerLanguages.includes(language.id)}
-                            onCheckedChange={() => handleLanguageToggle(language.id, true)}
-                            disabled={isSubmitting}
-                          />
-                          <Label htmlFor={`lang-${language.id}`} className="text-sm">{language.name}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="laborer-bio">About Your Experience</Label>
-                    <Textarea 
-                      id="laborer-bio" 
-                      placeholder="Describe your agricultural skills and experience..." 
-                      value={laborerBio}
-                      onChange={(e) => setLaborerBio(e.target.value)}
-                      className="min-h-[120px]"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                    ) : 'Complete Laborer Profile'}
                   </Button>
                 </form>
               )}
