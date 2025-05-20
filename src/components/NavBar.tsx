@@ -65,9 +65,9 @@ const NavBar = () => {
         <div className="hidden md:flex items-center space-x-1">
           {user ? (
             <>
-              <Link to="/dashboard">
+              <Link to="/">
                 <Button 
-                  variant={isActive('/dashboard') ? "default" : "ghost"} 
+                  variant={isActive('/') ? "default" : "ghost"} 
                   className="flex items-center"
                 >
                   <Home className="mr-2 h-4 w-4" /> Home
@@ -129,7 +129,7 @@ const NavBar = () => {
               <nav className="flex flex-col space-y-4 mt-6">
                 {user ? (
                   <>
-                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/" onClick={() => setMobileMenuOpen(false)}>
                       <Button 
                         variant="ghost" 
                         className="w-full justify-start"
