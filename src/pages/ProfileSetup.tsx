@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +21,35 @@ import { useToast } from '@/hooks/use-toast';
 import { crops } from '@/data/crops';
 import { Loader2 } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { Json } from '@/integrations/supabase/types';
+
+// Define interfaces for the skills data structure
+interface FarmerSkills {
+  crops?: string[];
+  farming_type?: string;
+  farm_size?: string;
+  bio?: string;
+  languages?: string[];
+}
+
+interface LaborerSkills {
+  crops?: string[];
+  availability?: string;
+  will_relocate?: boolean;
+  wage_expectation?: string;
+  bio?: string;
+  languages?: string[];
+  work_types?: string[];
+}
+
+// Type guard function to check if skills is a specific type
+const isFarmerSkills = (skills: { [key: string]: Json; } | Json[] | null): skills is FarmerSkills => {
+  return skills !== null && !Array.isArray(skills);
+};
+
+const isLaborerSkills = (skills: { [key: string]: Json; } | Json[] | null): skills is LaborerSkills => {
+  return skills !== null && !Array.isArray(skills);
+};
 
 const ProfileSetup = () => {
   const location = useLocation();
@@ -109,27 +137,29 @@ const ProfileSetup = () => {
         if (data.role === 'farmer') {
           if (data.phone) setFarmerPhone(data.phone);
           if (data.location) setFarmerLocation(data.location);
+          
           // Load additional farmer profile data if available
-          if (data.skills && typeof data.skills === 'object') {
-            if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops);
-            if (data.skills.farming_type) setFarmingType(data.skills.farming_type);
-            if (data.skills.farm_size) setFarmSize(data.skills.farm_size);
-            if (data.skills.bio) setFarmerBio(data.skills.bio);
-            if (data.skills.languages) setFarmerLanguages(data.skills.languages);
+          if (data.skills && isFarmerSkills(data.skills)) {
+            if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops as string[]);
+            if (data.skills.farming_type) setFarmingType(data.skills.farming_type as string);
+            if (data.skills.farm_size) setFarmSize(data.skills.farm_size as string);
+            if (data.skills.bio) setFarmerBio(data.skills.bio as string);
+            if (data.skills.languages) setFarmerLanguages(data.skills.languages as string[]);
           }
         } else if (data.role === 'laborer') {
           if (data.phone) setLaborerPhone(data.phone);
           if (data.location) setLaborerLocation(data.location);
           if (data.experience) setExperience(data.experience.toString());
+          
           // Load additional laborer profile data if available
-          if (data.skills && typeof data.skills === 'object') {
-            if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops);
-            if (data.skills.availability) setAvailability(data.skills.availability);
-            if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate);
-            if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation);
-            if (data.skills.bio) setLaborerBio(data.skills.bio);
-            if (data.skills.languages) setLaborerLanguages(data.skills.languages);
-            if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types);
+          if (data.skills && isLaborerSkills(data.skills)) {
+            if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops as string[]);
+            if (data.skills.availability) setAvailability(data.skills.availability as string);
+            if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate as boolean);
+            if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation as string);
+            if (data.skills.bio) setLaborerBio(data.skills.bio as string);
+            if (data.skills.languages) setLaborerLanguages(data.skills.languages as string[]);
+            if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types as string[]);
           }
         }
         
