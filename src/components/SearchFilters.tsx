@@ -14,9 +14,20 @@ import { supabase } from '@/integrations/supabase/client';
 interface SearchFiltersProps {
   onSearch: (filters: any) => void;
   targetRole?: 'farmer' | 'laborer';
+  initialFilters?: {
+    keyword?: string;
+    crop?: string;
+    category?: string;
+    season?: string;
+    distance?: number;
+    experience?: number;
+    location?: string;
+    preferred_work_type?: string;
+    can_relocate?: boolean;
+  };
 }
 
-const SearchFilters = ({ onSearch, targetRole }: SearchFiltersProps) => {
+const SearchFilters = ({ onSearch, targetRole, initialFilters = {} }: SearchFiltersProps) => {
   const { user } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,15 +35,15 @@ const SearchFilters = ({ onSearch, targetRole }: SearchFiltersProps) => {
   
   const { register, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
-      keyword: '',
-      crop: '',
-      category: '',
-      season: '',
-      distance: 50,
-      experience: 0,
-      location: '',
-      preferred_work_type: '',
-      can_relocate: false
+      keyword: initialFilters.keyword || '',
+      crop: initialFilters.crop || '',
+      category: initialFilters.category || '',
+      season: initialFilters.season || '',
+      distance: initialFilters.distance || 50,
+      experience: initialFilters.experience || 0,
+      location: initialFilters.location || '',
+      preferred_work_type: initialFilters.preferred_work_type || '',
+      can_relocate: initialFilters.can_relocate || false
     }
   });
   
@@ -107,8 +118,8 @@ const SearchFilters = ({ onSearch, targetRole }: SearchFiltersProps) => {
             <SelectContent>
               <SelectItem value="">All Crops</SelectItem>
               {crops.map((crop) => (
-                <SelectItem key={crop.value} value={crop.value}>
-                  {crop.label}
+                <SelectItem key={crop.id} value={crop.id}>
+                  {crop.name}
                 </SelectItem>
               ))}
             </SelectContent>

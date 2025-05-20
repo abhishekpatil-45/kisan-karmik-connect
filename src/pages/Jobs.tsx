@@ -171,14 +171,17 @@ const Jobs = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h1 className="text-2xl font-bold mb-6">Find Agricultural Jobs</h1>
             
-            <SearchFilters onSearch={handleSearch} initialFilters={{
-              keyword: '',
-              crop: cropFilter,
-              category: '',
-              season: '',
-              distance: 50,
-              experience: 0
-            }} />
+            <SearchFilters 
+              onSearch={handleSearch} 
+              initialFilters={{
+                keyword: '',
+                crop: cropFilter,
+                category: '',
+                season: '',
+                distance: 50,
+                experience: 0
+              }}
+            />
           </div>
           
           <div className="mb-4 flex justify-between items-center">
