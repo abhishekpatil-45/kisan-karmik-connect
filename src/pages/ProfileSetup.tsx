@@ -30,6 +30,7 @@ interface FarmerSkills {
   farm_size?: string;
   bio?: string;
   languages?: string[];
+  [key: string]: Json | undefined; // Add index signature for string keys
 }
 
 interface LaborerSkills {
@@ -40,14 +41,15 @@ interface LaborerSkills {
   bio?: string;
   languages?: string[];
   work_types?: string[];
+  [key: string]: Json | undefined; // Add index signature for string keys
 }
 
 // Type guard function to check if skills is a specific type
-const isFarmerSkills = (skills: { [key: string]: Json; } | Json[] | null): skills is FarmerSkills => {
+const isFarmerSkills = (skills: any): skills is FarmerSkills => {
   return skills !== null && !Array.isArray(skills);
 };
 
-const isLaborerSkills = (skills: { [key: string]: Json; } | Json[] | null): skills is LaborerSkills => {
+const isLaborerSkills = (skills: any): skills is LaborerSkills => {
   return skills !== null && !Array.isArray(skills);
 };
 
