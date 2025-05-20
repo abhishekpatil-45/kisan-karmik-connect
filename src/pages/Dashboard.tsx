@@ -50,9 +50,14 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchRecommendedProfiles();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchRecommendedProfiles();
+    }
+  }, [userProfile]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -67,15 +72,8 @@ const Dashboard = () => {
       if (error) throw error;
       
       // Update the userProfile state with type-safe data
-      setUserProfile({
-        id: data.id,
-        full_name: data.full_name,
-        location: data.location,
-        rating: data.rating,
-        role: data.role,
-        skills: data.skills,
-        experience: data.experience
-      });
+      setUserProfile(data as Profile);
+      
     } catch (error) {
       console.error('Error fetching user profile:', error);
       toast({
@@ -87,23 +85,13 @@ const Dashboard = () => {
   };
 
   const fetchRecommendedProfiles = async () => {
-    if (!user) return;
+    if (!user || !userProfile) return;
     
     try {
       setIsLoading(true);
       
-      const { data: userProfileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (!userProfileData) throw new Error('User profile not found');
-      
-      const userRole = userProfileData.role;
-      
       // Fetch opposite role profiles (farmers fetch laborers, laborers fetch farmers)
-      const oppositeRole = userRole === 'farmer' ? 'laborer' : 'farmer';
+      const oppositeRole = userProfile.role === 'farmer' ? 'laborer' : 'farmer';
       
       // Fetch profiles with opposite role
       const { data, error } = await supabase
@@ -113,6 +101,21 @@ const Dashboard = () => {
         .limit(4);
       
       if (error) throw error;
+
+      // Function to handle array or JSON data from Supabase
+      const getSkillsArray = (skills: any): string[] => {
+        if (!skills) return [];
+        if (Array.isArray(skills)) return skills;
+        if (typeof skills === 'string') {
+          try {
+            const parsed = JSON.parse(skills);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      };
       
       // Transform data to match the RecommendedProfile interface
       const processed: RecommendedProfile[] = (data || []).map(profile => ({
@@ -121,8 +124,8 @@ const Dashboard = () => {
         location: profile.location || 'Unknown Location',
         image: `/avatars/${oppositeRole}${Math.floor(Math.random() * 5) + 1}.jpg`,
         role: oppositeRole as 'farmer' | 'laborer',
-        skills: oppositeRole === 'laborer' ? (profile.skills as string[] || []) : undefined,
-        crops: oppositeRole === 'farmer' ? (profile.skills as string[] || []) : undefined,
+        skills: oppositeRole === 'laborer' ? getSkillsArray(profile.skills) : undefined,
+        crops: oppositeRole === 'farmer' ? getSkillsArray(profile.skills) : undefined,
         rating: profile.rating || 0,
         experience: oppositeRole === 'laborer' ? profile.experience : undefined
       }));
@@ -163,6 +166,21 @@ const Dashboard = () => {
             <Link to="/auth">
               <Button>Sign In</Button>
             </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <NavBar />
+        <main className="flex-1 bg-gray-50 flex items-center justify-center">
+          <div className="flex items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+            <span>Loading your profile...</span>
           </div>
         </main>
         <Footer />
@@ -221,7 +239,14 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="text-center py-10">
-                    <p className="text-gray-500">No recommendations found. Check back later.</p>
+                    <p className="text-gray-500">No recommendations found. Check back later or use the Search feature to find matches.</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={fetchRecommendedProfiles}
+                    >
+                      Refresh
+                    </Button>
                   </div>
                 )}
               </div>

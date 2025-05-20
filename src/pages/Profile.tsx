@@ -8,7 +8,7 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, MapPin, Phone, User, Calendar, Briefcase, Award } from 'lucide-react';
+import { Loader2, MapPin, Phone, User, Calendar, Briefcase, Award, Edit } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const Profile = () => {
@@ -49,9 +49,6 @@ const Profile = () => {
         
         // Set the profile data
         setProfile(profileData);
-        
-        // Here you would fetch additional profile data from other tables if needed
-        // Such as farmer_details or laborer_details
         
       } catch (error: any) {
         console.error("Error fetching profile:", error);
@@ -110,6 +107,36 @@ const Profile = () => {
     );
   }
   
+  // Helper function to render skills/crops
+  const renderTagsList = (items: string[] | null) => {
+    if (!items || !items.length) return <p className="text-gray-500">None specified</p>;
+    
+    return (
+      <div className="flex flex-wrap gap-2 mt-1">
+        {items.map((item, index) => (
+          <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded-full">
+            {item}
+          </span>
+        ))}
+      </div>
+    );
+  };
+  
+  // Function to handle array or JSON data from Supabase
+  const getSkillsArray = (skills: any): string[] => {
+    if (!skills) return [];
+    if (Array.isArray(skills)) return skills;
+    if (typeof skills === 'string') {
+      try {
+        const parsed = JSON.parse(skills);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+  
   return (
     <div className="flex min-h-screen">
       <div className="flex flex-col w-full">
@@ -126,7 +153,7 @@ const Profile = () => {
                       onClick={() => navigate('/profile-setup')}
                       className="bg-white"
                     >
-                      Edit Profile
+                      <Edit className="h-4 w-4 mr-2" /> Edit Profile
                     </Button>
                   </div>
                 )}
@@ -187,15 +214,77 @@ const Profile = () => {
                       </h2>
                       
                       {profile.role === 'farmer' ? (
-                        // Farmer specific information would go here
-                        <p className="text-gray-600">
-                          Additional farm details will be displayed here once available.
-                        </p>
+                        // Farmer specific information
+                        <>
+                          {profile.farm_size && (
+                            <div className="flex items-start mb-3">
+                              <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="font-medium">Farm Size</div>
+                                <div className="text-gray-600">{profile.farm_size} acres</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {profile.farming_type && (
+                            <div className="flex items-start mb-3">
+                              <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="font-medium">Type of Farming</div>
+                                <div className="text-gray-600">{profile.farming_type}</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start mb-3">
+                            <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                            <div>
+                              <div className="font-medium">Crops Grown</div>
+                              {renderTagsList(getSkillsArray(profile.skills))}
+                            </div>
+                          </div>
+                        </>
                       ) : (
-                        // Laborer specific information would go here
-                        <p className="text-gray-600">
-                          Additional work details will be displayed here once available.
-                        </p>
+                        // Laborer specific information
+                        <>
+                          {profile.experience != null && (
+                            <div className="flex items-start mb-3">
+                              <Award className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="font-medium">Years of Experience</div>
+                                <div className="text-gray-600">{profile.experience} years</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {profile.preferred_work_type && (
+                            <div className="flex items-start mb-3">
+                              <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="font-medium">Preferred Work Type</div>
+                                <div className="text-gray-600">{profile.preferred_work_type}</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {profile.can_relocate !== undefined && (
+                            <div className="flex items-start mb-3">
+                              <MapPin className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="font-medium">Willing to Relocate</div>
+                                <div className="text-gray-600">{profile.can_relocate ? 'Yes' : 'No'}</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start mb-3">
+                            <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
+                            <div>
+                              <div className="font-medium">Skills / Crop Specialization</div>
+                              {renderTagsList(getSkillsArray(profile.skills))}
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

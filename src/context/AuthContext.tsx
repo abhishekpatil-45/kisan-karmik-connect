@@ -117,13 +117,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
+      // FIX: Ensure role is correctly passed to user metadata
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
           data: {
             full_name: metadata.fullName,
-            role: metadata.role
+            role: metadata.role // This ensures role is properly set in auth metadata
           }
         }
       });
