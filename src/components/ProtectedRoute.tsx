@@ -1,93 +1,37 @@
 
-import { ReactNode, useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
-type ProtectedRouteProps = {
-  children: ReactNode;
-  redirectTo?: string;
-  allowedRoles?: string[];
-};
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requireCompleteProfile?: boolean;
+}
 
-const ProtectedRoute = ({ 
-  children, 
-  redirectTo = "/auth",
-  allowedRoles
-}: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
-  const [isChecking, setIsChecking] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const location = useLocation();
-
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (!user) {
-        setIsChecking(false);
-        return;
-      }
-
-      try {
-        // Double check with Supabase that the session is actually valid
-        const { data: sessionData } = await supabase.auth.getSession();
-        
-        if (!sessionData.session) {
-          setIsChecking(false);
-          return;
-        }
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching user role:', error);
-          setIsChecking(false);
-          return;
-        }
-
-        setUserRole(data.role);
-      } catch (error) {
-        console.error('Error in role check:', error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    // We need a short delay to ensure auth state has been checked
-    const timer = setTimeout(() => {
-      if (user) {
-        checkUserRole();
-      } else {
-        setIsChecking(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [user, loading]);
-
-  if (loading || isChecking) {
+const ProtectedRoute = ({ children, requireCompleteProfile = false }: ProtectedRouteProps) => {
+  const { user, loading, profileCompleted } = useAuth();
+  
+  // Show loading state if we're still checking auth
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-2">Loading...</span>
       </div>
     );
   }
-
-  // Check if user is authenticated
+  
+  // Redirect to auth if user is not logged in
   if (!user) {
-    return <Navigate to={redirectTo} replace state={{ from: location }} />;
+    return <Navigate to="/auth" replace />;
   }
-
-  // If roles are specified, check if user has required role
-  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/dashboard" replace />;
+  
+  // If page requires complete profile and profile is not complete, redirect to profile setup
+  if (requireCompleteProfile && !profileCompleted) {
+    return <Navigate to="/profile-setup" replace />;
   }
-
+  
   return <>{children}</>;
 };
 

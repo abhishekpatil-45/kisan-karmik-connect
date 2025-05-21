@@ -1,3 +1,4 @@
+
 import React from 'react';
 import HeroSection from '@/components/HeroSection';
 import { Button } from '@/components/ui/button';
@@ -6,12 +7,33 @@ import { Link } from 'react-router-dom';
 import { User, Search, MessageCircle, Star } from 'lucide-react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/context/AuthContext';
+
 const Index = () => {
+  const { user, profileCompleted } = useAuth();
+
   return <div className="flex flex-col min-h-screen">
       <NavBar />
       
       <main className="flex-1">
         <HeroSection />
+        
+        {/* Profile Completion CTA - Only shown for logged in users with incomplete profiles */}
+        {user && !profileCompleted && (
+          <section className="py-6 bg-amber-50">
+            <div className="container mx-auto px-4 text-center">
+              <h3 className="text-xl font-bold mb-3">Your profile is incomplete</h3>
+              <p className="text-gray-700 mb-4">
+                Complete your profile to access all features and get matched with the right opportunities.
+              </p>
+              <Link to="/profile-setup">
+                <Button className="bg-primary hover:bg-primary-600">
+                  Complete Your Profile
+                </Button>
+              </Link>
+            </div>
+          </section>
+        )}
         
         {/* Features Section */}
         <section className="py-16 bg-gray-50">

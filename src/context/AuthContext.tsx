@@ -10,6 +10,8 @@ interface AuthContextType {
   session: Session | null;
   user: SupabaseUser | null;
   loading: boolean;
+  profileCompleted: boolean;
+  userRole: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -23,9 +25,56 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileCompleted, setProfileCompleted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+
+  // Check if user profile is complete
+  const checkProfileCompletion = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return false;
+      }
+
+      // Determine if profile is complete based on role-specific requirements
+      if (data.role === 'farmer') {
+        // For farmers, require phone, location, and at least one crop
+        const isComplete = !!(
+          data.phone && 
+          data.location && 
+          data.skills?.crops?.length
+        );
+        setProfileCompleted(isComplete);
+        setUserRole(data.role);
+        return isComplete;
+      } else if (data.role === 'laborer') {
+        // For laborers, require phone, location, and at least one crop skill
+        const isComplete = !!(
+          data.phone && 
+          data.location && 
+          data.skills?.crops?.length
+        );
+        setProfileCompleted(isComplete);
+        setUserRole(data.role);
+        return isComplete;
+      }
+      
+      setUserRole(data.role);
+      return false;
+    } catch (error) {
+      console.error('Error checking profile completion:', error);
+      return false;
+    }
+  };
 
   // Define the function before using it
   const setupAuthStateListener = () => {
@@ -33,6 +82,15 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Check profile completion if user is logged in
+        if (session?.user) {
+          await checkProfileCompletion(session.user.id);
+        } else {
+          setProfileCompleted(false);
+          setUserRole(null);
+        }
+        
         setLoading(false);
 
         if (event === 'SIGNED_OUT') {
@@ -41,6 +99,10 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
           
           // Handle sign out event - force navigate to home
           navigate('/', { replace: true });
+          
+          // Reset states
+          setProfileCompleted(false);
+          setUserRole(null);
           
           toast({
             title: "Signed Out",
@@ -58,9 +120,25 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
 
             if (error) throw error;
 
+            setUserRole(data.role);
+            const isProfileComplete = await checkProfileCompletion(session.user.id);
+
+            // If profile exists but incomplete, and user is not on profile setup page
+            if (data && !isProfileComplete && location.pathname !== '/profile-setup') {
+              // Don't auto-redirect from the homepage
+              if (location.pathname !== '/') {
+                navigate('/');
+                toast({
+                  title: "Complete Your Profile",
+                  description: "Please complete your profile to access all features",
+                });
+              }
+            }
             // If profile exists and user is on auth page, redirect to home page
-            if (data && (location.pathname === '/auth' || location.pathname === '/')) {
-              navigate('/'); // Redirect to homepage after login
+            else if (data && (location.pathname === '/auth' || location.pathname === '/')) {
+              if (location.pathname === '/auth') {
+                navigate('/'); // Redirect to homepage after login
+              }
             }
             // If no profile, redirect to profile setup
             else if (!data && window.location.pathname !== '/profile-setup') {
@@ -83,9 +161,14 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
     const cleanup = setupAuthStateListener();
     
     // Check for existing session at initialization
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await checkProfileCompletion(session.user.id);
+      }
+      
       setLoading(false);
     });
 
@@ -104,6 +187,8 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
       // Force clear user state immediately instead of waiting for the listener
       setUser(null);
       setSession(null);
+      setProfileCompleted(false);
+      setUserRole(null);
       
       // Force navigation to home page
       navigate('/', { replace: true });
@@ -122,7 +207,14 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
     }
   };
 
-  const value: AuthContextType = { session, user, loading, signOut };
+  const value: AuthContextType = { 
+    session, 
+    user, 
+    loading, 
+    profileCompleted, 
+    userRole, 
+    signOut 
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
