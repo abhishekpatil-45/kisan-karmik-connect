@@ -36,8 +36,12 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         setLoading(false);
 
         if (event === 'SIGNED_OUT') {
-          // Handle sign out event
-          navigate('/');
+          // Clear any local auth data
+          localStorage.removeItem('supabase.auth.token');
+          
+          // Handle sign out event - force navigate to home
+          navigate('/', { replace: true });
+          
           toast({
             title: "Signed Out",
             description: "You have been signed out successfully",
@@ -90,8 +94,24 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      // The auth state listener will handle redirection and session clearing
+      console.log("Signing out...");
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Force clear user state immediately instead of waiting for the listener
+      setUser(null);
+      setSession(null);
+      
+      // Force navigation to home page
+      navigate('/', { replace: true });
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been signed out successfully",
+      });
     } catch (error) {
       console.error('Error signing out:', error);
       toast({

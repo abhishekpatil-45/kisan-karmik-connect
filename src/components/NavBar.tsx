@@ -47,9 +47,15 @@ const NavBar = () => {
   
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
-    await signOut();
-    // The navigation is handled in the AuthContext
-    setMobileMenuOpen(false);
+    e.stopPropagation();
+    console.log("Sign out clicked");
+    
+    try {
+      await signOut();
+      setMobileMenuOpen(false);
+    } catch (error) {
+      console.error("Error during sign out:", error);
+    }
   };
   
   const isActive = (path: string) => {

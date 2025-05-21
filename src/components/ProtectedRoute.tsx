@@ -29,6 +29,14 @@ const ProtectedRoute = ({
       }
 
       try {
+        // Double check with Supabase that the session is actually valid
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (!sessionData.session) {
+          setIsChecking(false);
+          return;
+        }
+        
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
@@ -49,7 +57,7 @@ const ProtectedRoute = ({
       }
     };
 
-    // Set a short timeout to ensure auth state has been checked
+    // We need a short delay to ensure auth state has been checked
     const timer = setTimeout(() => {
       if (user) {
         checkUserRole();
