@@ -1,4 +1,3 @@
-
 import React from 'react';
 import HeroSection from '@/components/HeroSection';
 import { Button } from '@/components/ui/button';
@@ -7,10 +6,8 @@ import { Link } from 'react-router-dom';
 import { User, Search, MessageCircle, Star } from 'lucide-react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-
 const Index = () => {
-  return (
-    <div className="flex flex-col min-h-screen">
+  return <div className="flex flex-col min-h-screen">
       <NavBar />
       
       <main className="flex-1">
@@ -22,22 +19,9 @@ const Index = () => {
             <h2 className="text-3xl font-bold text-center mb-12">How Agrisamadhana Works</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <FeatureCard 
-                icon={<User size={24} />}
-                title="Create Your Profile"
-                description="Register as a farmer or laborer and build your profile showcasing your expertise and requirements."
-              />
-              <FeatureCard 
-                icon={<Search size={24} />}
-                title="Find Perfect Matches"
-                description="Search for laborers with specific crop expertise or find farmers growing crops you specialize in."
-                className="md:transform md:translate-y-6"
-              />
-              <FeatureCard 
-                icon={<MessageCircle size={24} />}
-                title="Connect & Collaborate"
-                description="Send connection requests, message directly, and arrange work opportunities."
-              />
+              <FeatureCard icon={<User size={24} />} title="Create Your Profile" description="Register as a farmer or laborer and build your profile showcasing your expertise and requirements." />
+              <FeatureCard icon={<Search size={24} />} title="Find Perfect Matches" description="Search for laborers with specific crop expertise or find farmers growing crops you specialize in." className="md:transform md:translate-y-6" />
+              <FeatureCard icon={<MessageCircle size={24} />} title="Connect & Collaborate" description="Send connection requests, message directly, and arrange work opportunities." />
             </div>
           </div>
         </section>
@@ -56,7 +40,7 @@ const Index = () => {
                 </Button>
               </Link>
               <Link to="/auth?role=laborer">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full">
+                <Button size="lg" variant="outline" className="border-white w-full bg-orange-950 hover:bg-orange-800 text-slate-50">
                   Register as Laborer
                 </Button>
               </Link>
@@ -74,9 +58,7 @@ const Index = () => {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center mb-4">
                   <div className="flex mr-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} size={16} className="text-yellow-500 fill-yellow-500" />
-                    ))}
+                    {[1, 2, 3, 4, 5].map(star => <Star key={star} size={16} className="text-yellow-500 fill-yellow-500" />)}
                   </div>
                   <span className="text-sm text-gray-600">5.0</span>
                 </div>
@@ -96,9 +78,7 @@ const Index = () => {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center mb-4">
                   <div className="flex mr-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} size={16} className="text-yellow-500 fill-yellow-500" />
-                    ))}
+                    {[1, 2, 3, 4, 5].map(star => <Star key={star} size={16} className="text-yellow-500 fill-yellow-500" />)}
                   </div>
                   <span className="text-sm text-gray-600">5.0</span>
                 </div>
@@ -119,8 +99,6 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
