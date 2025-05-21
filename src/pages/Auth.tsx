@@ -29,7 +29,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { Github, Google } from 'lucide-react';
+import { Github, Mail } from 'lucide-react';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -155,7 +155,7 @@ const Auth = () => {
                   Github
                 </Button>
                 <Button variant="outline" type="button" disabled>
-                  <Google className="mr-2 h-4 w-4" />
+                  <Mail className="mr-2 h-4 w-4" />
                   Google
                 </Button>
               </TabsContent>
