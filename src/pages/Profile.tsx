@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +21,7 @@ import {
   MessageCircle,
   Users
 } from 'lucide-react';
+import { Calendar as CalendarCheck } from 'lucide-react';
 
 interface Profile {
   id: string;

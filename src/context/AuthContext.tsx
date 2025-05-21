@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,11 +24,8 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setupAuthStateListener();
-  }, [setupAuthStateListener]);
-
-  const setupAuthStateListener = useCallback(() => {
+  // Define the function before using it
+  const setupAuthStateListener = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -47,7 +45,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
 
             // If profile exists and user is on auth page, redirect to home page
             if (data && window.location.pathname === '/auth') {
-              navigate('/');  // Changed from '/dashboard' to '/'
+              navigate('/'); // Redirect to homepage after login
             }
             // If no profile, redirect to profile setup
             else if (!data && window.location.pathname !== '/profile-setup') {
@@ -64,6 +62,11 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
+  };
+
+  useEffect(() => {
+    const cleanup = setupAuthStateListener();
+    return cleanup;
   }, [navigate]);
 
   const signOut = async () => {
