@@ -103,6 +103,11 @@ const Auth = () => {
     }
   };
   
+  const handleReturnToLogin = () => {
+    setShowConfirmation(false);
+    navigate('/auth?tab=login', { replace: true });
+  };
+  
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -116,7 +121,13 @@ const Auth = () => {
                 <>
                   Registration successful! Check your email for verification.
                   <Separator className="my-4" />
-                  <Link to="/auth?tab=login" className="text-blue-500">Return to Login</Link>
+                  <Button 
+                    variant="link" 
+                    className="text-blue-500 p-0 h-auto font-normal"
+                    onClick={handleReturnToLogin}
+                  >
+                    Return to Login
+                  </Button>
                 </>
               ) : (
                 "Enter your credentials to sign in or register"
