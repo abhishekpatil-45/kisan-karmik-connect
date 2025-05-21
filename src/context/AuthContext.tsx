@@ -1,9 +1,10 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   session: Session | null;
@@ -23,6 +24,8 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
 
   // Define the function before using it
   const setupAuthStateListener = () => {
@@ -32,8 +35,16 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
+        if (event === 'SIGNED_OUT') {
+          // Handle sign out event
+          navigate('/');
+          toast({
+            title: "Signed Out",
+            description: "You have been signed out successfully",
+          });
+        }
         // If the user just signed in, check if they have a profile
-        if (event === 'SIGNED_IN' && session) {
+        else if (event === 'SIGNED_IN' && session) {
           try {
             const { data, error } = await supabase
               .from('profiles')
@@ -44,7 +55,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
             if (error) throw error;
 
             // If profile exists and user is on auth page, redirect to home page
-            if (data && window.location.pathname === '/auth') {
+            if (data && (location.pathname === '/auth' || location.pathname === '/')) {
               navigate('/'); // Redirect to homepage after login
             }
             // If no profile, redirect to profile setup
@@ -66,17 +77,28 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
 
   useEffect(() => {
     const cleanup = setupAuthStateListener();
+    
+    // Check for existing session at initialization
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
     return cleanup;
   }, [navigate]);
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      navigate('/auth');
+      // The auth state listener will handle redirection and session clearing
     } catch (error) {
       console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

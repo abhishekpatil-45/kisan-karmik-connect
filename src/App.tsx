@@ -32,8 +32,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Public routes - accessible to everyone */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/category-selection" element={<CategorySelection />} />
+            <Route path="/search" element={<Search />} />
+            
+            {/* Protected routes - only accessible when logged in */}
             <Route 
               path="/profile-setup" 
               element={
@@ -50,8 +55,6 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route path="/search" element={<Search />} />
-            <Route path="/category-selection" element={<CategorySelection />} />
             <Route 
               path="/messages" 
               element={
@@ -61,8 +64,11 @@ const App = () => (
               } 
             />
             <Route path="/profile/:id" element={<Profile />} />
-            {/* Remove the /dashboard route and redirect it to /profile */}
+            
+            {/* Redirects */}
             <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+            
+            {/* 404 page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

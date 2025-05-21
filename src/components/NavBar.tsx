@@ -45,8 +45,11 @@ const NavBar = () => {
     }
   };
   
-  const handleSignOut = async () => {
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
     await signOut();
+    // The navigation is handled in the AuthContext
+    setMobileMenuOpen(false);
   };
   
   const isActive = (path: string) => {
