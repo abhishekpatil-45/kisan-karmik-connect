@@ -1,11 +1,8 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
-
 const HeroSection = () => {
-  return (
-    <div className="relative bg-gradient-to-r from-primary-700 to-primary-900 text-white">
+  return <div className="relative bg-gradient-to-r from-primary-700 to-primary-900 text-white">
       <div className="absolute inset-0 bg-[url('/hero-pattern.svg')] opacity-10"></div>
       <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
         <div className="flex flex-col md:flex-row items-center">
@@ -24,23 +21,17 @@ const HeroSection = () => {
                 </Button>
               </Link>
               <Link to="/category-selection?flow=job">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="border-white text-white w-full sm:w-auto bg-amber-950 hover:bg-amber-800">
                   Find Jobs
                 </Button>
               </Link>
             </div>
           </div>
           <div className="md:w-1/2 flex justify-center">
-            <img 
-              src="/hero-image.svg" 
-              alt="Farmers and laborers working together" 
-              className="max-w-full md:max-w-md rounded-lg shadow-xl"
-            />
+            <img src="/hero-image.svg" alt="Farmers and laborers working together" className="max-w-full md:max-w-md rounded-lg shadow-xl" />
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default HeroSection;
