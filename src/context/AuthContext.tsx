@@ -45,13 +45,22 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         return false;
       }
 
+      // Helper function to safely check if skills has crops
+      const hasValidCrops = (skills: any): boolean => {
+        return skills && 
+               typeof skills === 'object' && 
+               !Array.isArray(skills) &&
+               Array.isArray(skills.crops) && 
+               skills.crops.length > 0;
+      };
+
       // Determine if profile is complete based on role-specific requirements
       if (data.role === 'farmer') {
         // For farmers, require phone, location, and at least one crop
         const isComplete = !!(
           data.phone && 
           data.location && 
-          data.skills?.crops?.length
+          hasValidCrops(data.skills)
         );
         setProfileCompleted(isComplete);
         setUserRole(data.role);
@@ -61,7 +70,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         const isComplete = !!(
           data.phone && 
           data.location && 
-          data.skills?.crops?.length
+          hasValidCrops(data.skills)
         );
         setProfileCompleted(isComplete);
         setUserRole(data.role);
