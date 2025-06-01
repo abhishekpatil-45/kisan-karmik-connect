@@ -1,500 +1,235 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-import ProfileCard from '@/components/ProfileCard';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { 
-  Loader2, 
-  MapPin, 
-  Phone, 
-  User, 
-  Calendar, 
-  Briefcase, 
-  Award, 
-  Edit,
-  Bell,
-  MessageCircle,
-  Users
-} from 'lucide-react';
-import { Calendar as CalendarCheck } from 'lucide-react';
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  location: string | null;
-  rating: number | null;
-  role: string;
-  skills: string[] | any | null;
-  experience: number | null;
-}
-
-interface RecommendedProfile {
-  id: string;
-  name: string;
-  location: string;
-  image: string;
-  role: 'farmer' | 'laborer';
-  skills?: string[];
-  crops?: string[];
-  rating: number;
-  experience?: number;
-}
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { Loader2, User, MapPin, Phone, Calendar } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const Profile = () => {
   const { id } = useParams();
-  const { toast } = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recommendedProfiles, setRecommendedProfiles] = useState<RecommendedProfile[]>([]);
-  
-  const isOwnProfile = !id || id === user?.id;
-  const profileId = id || user?.id;
-
-  // Function to handle array or JSON data from Supabase
-  const getSkillsArray = (skills: any): string[] => {
-    if (!skills) return [];
-    if (Array.isArray(skills)) return skills;
-    if (typeof skills === 'string') {
-      try {
-        const parsed = JSON.parse(skills);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  };
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        if (!profileId) {
-          setError("No profile ID provided");
-          setLoading(false);
+        setIsLoading(true);
+        setError(null);
+        
+        // If no ID provided, fetch current user's profile
+        const userId = id || user?.id;
+        
+        if (!userId) {
+          setError('No user ID provided');
           return;
         }
-        
-        // Fetch basic profile information
-        const { data: profileData, error: profileError } = await supabase
+
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', profileId)
+          .eq('id', userId)
           .single();
-          
-        if (profileError) {
-          throw profileError;
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            setError('Profile not found');
+          } else {
+            throw error;
+          }
+          return;
         }
-        
-        if (!profileData) {
-          throw new Error("Profile not found");
-        }
-        
-        // Set the profile data
-        setProfile(profileData);
-        
-        // If viewing own profile, fetch recommended profiles
-        if (isOwnProfile) {
-          fetchRecommendedProfiles(profileData);
-        }
-        
-      } catch (error: any) {
-        console.error("Error fetching profile:", error);
-        setError(error.message);
-        toast({
-          title: "Error",
-          description: "Failed to load profile information",
-          variant: "destructive",
-        });
+
+        setProfileData(data);
+      } catch (err: any) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    
+
     fetchProfile();
-  }, [profileId, isOwnProfile, toast]);
-  
-  const fetchRecommendedProfiles = async (userProfile: Profile) => {
-    if (!user) return;
-    
-    try {
-      // Fetch opposite role profiles (farmers fetch laborers, laborers fetch farmers)
-      const oppositeRole = userProfile.role === 'farmer' ? 'laborer' : 'farmer';
-      
-      // Fetch profiles with opposite role
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', oppositeRole)
-        .limit(4);
-      
-      if (error) throw error;
-      
-      // Transform data to match the RecommendedProfile interface
-      const processed: RecommendedProfile[] = (data || []).map(profile => ({
-        id: profile.id,
-        name: profile.full_name || 'Unnamed User',
-        location: profile.location || 'Unknown Location',
-        image: `/avatars/${oppositeRole}${Math.floor(Math.random() * 5) + 1}.jpg`,
-        role: oppositeRole as 'farmer' | 'laborer',
-        skills: oppositeRole === 'laborer' ? getSkillsArray(profile.skills) : undefined,
-        crops: oppositeRole === 'farmer' ? getSkillsArray(profile.skills) : undefined,
-        rating: profile.rating || 0,
-        experience: oppositeRole === 'laborer' ? profile.experience : undefined
-      }));
-      
-      setRecommendedProfiles(processed);
-    } catch (error) {
-      console.error('Error fetching recommended profiles:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load recommended profiles.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const handleConnect = (id: string) => {
-    toast({
-      title: "Connection Request Sent",
-      description: "They will be notified of your interest.",
-    });
-  };
-  
-  const handleMessage = (id: string) => {
-    // Redirect to messages page
-    navigate('/messages');
-  };
-  
-  // Helper function to render skills/crops
-  const renderTagsList = (items: string[] | null) => {
-    if (!items || !items.length) return <p className="text-gray-500">None specified</p>;
-    
+  }, [id, user?.id]);
+
+  if (isLoading) {
     return (
-      <div className="flex flex-wrap gap-2 mt-1">
-        {items.map((item, index) => (
-          <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded-full">
-            {item}
-          </span>
-        ))}
-      </div>
-    );
-  };
-  
-  if (loading) {
-    return (
-      <div className="flex min-h-screen">
-        <div className="flex flex-col w-full">
-          <NavBar />
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Loading profile...</span>
-          </div>
-          <Footer />
-        </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading profile...</span>
       </div>
     );
   }
-  
-  if (error || !profile) {
+
+  if (error) {
     return (
-      <div className="flex min-h-screen">
-        <div className="flex flex-col w-full">
+      <ProtectedRoute>
+        <div className="flex flex-col min-h-screen">
           <NavBar />
-          <div className="flex-1 flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <h2 className="text-xl font-bold text-center">Profile Not Found</h2>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center">
-                <p className="text-gray-600 mb-4 text-center">
-                  {error || "The requested profile could not be found."}
-                </p>
-                <Button onClick={() => navigate('/')}>
-                  Return to Homepage
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <main className="flex-1 bg-gray-50 py-8 px-4">
+            <div className="container mx-auto max-w-4xl">
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <p className="text-red-600">{error}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
           <Footer />
         </div>
-      </div>
+      </ProtectedRoute>
     );
   }
-  
+
+  if (!profileData) {
+    return (
+      <ProtectedRoute>
+        <div className="flex flex-col min-h-screen">
+          <NavBar />
+          <main className="flex-1 bg-gray-50 py-8 px-4">
+            <div className="container mx-auto max-w-4xl">
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <p className="text-gray-600">Profile not found</p>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen">
-      <div className="flex flex-col w-full">
+    <ProtectedRoute>
+      <div className="flex flex-col min-h-screen">
         <NavBar />
         
-        <main className="flex-1 bg-gray-50">
-          <div className="container mx-auto px-4 py-8">
-            {/* Dashboard Header */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h1 className="text-2xl font-bold mb-2">
-                Welcome back, {profile?.full_name || 'User'}
-              </h1>
-              <p className="text-gray-600">
-                {profile?.role === 'farmer'
-                  ? 'Here are some skilled laborers who match your crop requirements.'
-                  : 'Here are farmers looking for your expertise.'}
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Main Content - Recommendations */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Recommended {profile?.role === 'farmer' ? 'Laborers' : 'Farmers'}
-                  </h2>
+        <main className="flex-1 bg-gray-50 py-8 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl">
+                      {profileData.full_name || 'User Profile'}
+                    </CardTitle>
+                    <Badge variant="secondary" className="mt-1">
+                      {profileData.role === 'farmer' ? 'Farmer' : 'Laborer'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-6">
+                {/* Contact Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {profileData.phone && (
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <span>{profileData.phone}</span>
+                    </div>
+                  )}
                   
-                  {!isOwnProfile ? (
-                    <div className="text-center py-10">
-                      <p className="text-gray-500">When viewing another user's profile, recommendations are not displayed.</p>
+                  {profileData.location && (
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="w-4 h-4 text-gray-500" />
+                      <span>{profileData.location}</span>
                     </div>
-                  ) : recommendedProfiles.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {recommendedProfiles.map((profile) => (
-                        <ProfileCard
-                          key={profile.id}
-                          name={profile.name}
-                          location={profile.location}
-                          image={profile.image}
-                          role={profile.role}
-                          skills={profile.skills}
-                          crops={profile.crops}
-                          rating={profile.rating}
-                          experience={profile.experience}
-                          onConnect={() => handleConnect(profile.id)}
-                          onMessage={() => handleMessage(profile.id)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-10">
-                      <p className="text-gray-500">No recommendations found. Check back later or use the Search feature to find matches.</p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={() => fetchRecommendedProfiles(profile)}
-                      >
-                        Refresh
-                      </Button>
+                  )}
+                  
+                  {profileData.experience && (
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span>{profileData.experience} years experience</span>
                     </div>
                   )}
                 </div>
-                
-                {/* Recent Activity - Only show for own profile */}
-                {isOwnProfile && (
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3 p-3 rounded-md hover:bg-gray-50">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                          <User size={20} className="text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Profile updated</p>
-                          <p className="text-sm text-gray-600">Your profile information has been updated.</p>
-                          <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
-                        </div>
+
+                {/* Skills and Crops */}
+                {profileData.skills && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {profileData.role === 'farmer' ? 'Crops Grown' : 'Crop Experience'}
+                    </h3>
+                    {profileData.skills.crops && Array.isArray(profileData.skills.crops) && (
+                      <div className="flex flex-wrap gap-2">
+                        {profileData.skills.crops.map((crop: string, index: number) => (
+                          <Badge key={index} variant="outline">
+                            {crop}
+                          </Badge>
+                        ))}
                       </div>
-                      
-                      <div className="flex items-start gap-3 p-3 rounded-md hover:bg-gray-50">
-                        <div className="bg-green-100 p-2 rounded-full">
-                          <MessageCircle size={20} className="text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Message system activated</p>
-                          <p className="text-sm text-gray-600">You can now send messages to connections.</p>
-                          <p className="text-xs text-gray-500 mt-1">Yesterday</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3 p-3 rounded-md hover:bg-gray-50">
-                        <div className="bg-purple-100 p-2 rounded-full">
-                          <CalendarCheck size={20} className="text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Account created</p>
-                          <p className="text-sm text-gray-600">Welcome to Agrisamadhana!</p>
-                          <p className="text-xs text-gray-500 mt-1">3 days ago</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
-              </div>
-              
-              {/* Sidebar - Show for own profile */}
-              {isOwnProfile && (
-                <div className="space-y-6">
-                  {/* Profile Summary */}
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="relative">
-                        <img 
-                          src={profile?.role === 'farmer' ? '/avatars/farmer1.jpg' : '/avatars/laborer1.jpg'} 
-                          alt="Profile" 
-                          className="h-16 w-16 rounded-full object-cover"
-                        />
-                        <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-500 border-2 border-white"></div>
-                      </div>
+
+                {/* Bio */}
+                {profileData.skills?.bio && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">About</h3>
+                    <p className="text-gray-700">{profileData.skills.bio}</p>
+                  </div>
+                )}
+
+                {/* Role-specific information */}
+                {profileData.role === 'farmer' && profileData.skills && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {profileData.skills.farm_size && (
                       <div>
-                        <h3 className="font-semibold">{profile?.full_name || 'User'}</h3>
-                        <p className="text-sm text-gray-600">
-                          {profile?.role === 'farmer' ? 'Farmer' : 'Agricultural Laborer'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <Link to="/profile">
-                      <Button variant="outline" className="w-full mb-2">View Profile</Button>
-                    </Link>
-                    <Link to="/profile-setup">
-                      <Button variant="outline" className="w-full">Edit Profile</Button>
-                    </Link>
-                  </div>
-                  
-                  {/* Notifications */}
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold">Notifications</h3>
-                      <div className="bg-primary-50 text-primary-700 text-xs px-2 py-1 rounded-full font-medium">3 new</div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 p-2 rounded-md bg-gray-50">
-                        <Bell size={16} className="text-primary-600" />
-                        <p className="text-sm">New connection request</p>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 rounded-md bg-gray-50">
-                        <Bell size={16} className="text-primary-600" />
-                        <p className="text-sm">New message received</p>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 rounded-md bg-gray-50">
-                        <Bell size={16} className="text-primary-600" />
-                        <p className="text-sm">Profile view notification</p>
-                      </div>
-                    </div>
-                    
-                    <Button variant="ghost" size="sm" className="w-full mt-3 text-gray-600">
-                      View all notifications
-                    </Button>
-                  </div>
-                  
-                  {/* Connections */}
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold">Your Connections</h3>
-                      <Users size={16} className="text-gray-600" />
-                    </div>
-                    
-                    {recommendedProfiles.length > 0 ? (
-                      <>
-                        <div className="flex -space-x-2 mb-3">
-                          {recommendedProfiles.slice(0, Math.min(5, recommendedProfiles.length)).map((profile, i) => (
-                            <img 
-                              key={i}
-                              src={profile.image} 
-                              alt={`Connection ${i+1}`}
-                              className="h-8 w-8 rounded-full border-2 border-white"
-                            />
-                          ))}
-                          {recommendedProfiles.length > 5 && (
-                            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs font-medium text-gray-600 border-2 border-white">
-                              +{recommendedProfiles.length - 5}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <Button variant="ghost" size="sm" className="w-full text-gray-600">
-                          Manage connections
-                        </Button>
-                      </>
-                    ) : (
-                      <p className="text-sm text-gray-500 mb-3">No connections yet.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Detailed profile information (for both own and others' profiles) */}
-              {!isOwnProfile && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold mb-4">Profile Information</h2>
-                  
-                  <div className="space-y-4">
-                    {profile.location && (
-                      <div className="flex items-start mb-3">
-                        <MapPin className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
-                        <div>
-                          <div className="font-medium">Location</div>
-                          <div className="text-gray-600">{profile.location}</div>
-                        </div>
+                        <h4 className="font-medium">Farm Size</h4>
+                        <p className="text-gray-600">{profileData.skills.farm_size} acres</p>
                       </div>
                     )}
-                    
-                    {profile.role === 'farmer' ? (
-                      <>
-                        <div className="flex items-start mb-3">
-                          <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <div className="font-medium">Crops Grown</div>
-                            {renderTagsList(getSkillsArray(profile.skills))}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {profile.experience != null && (
-                          <div className="flex items-start mb-3">
-                            <Award className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
-                            <div>
-                              <div className="font-medium">Experience</div>
-                              <div className="text-gray-600">{profile.experience} years</div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-start mb-3">
-                          <Briefcase className="h-5 w-5 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <div className="font-medium">Skills</div>
-                            {renderTagsList(getSkillsArray(profile.skills))}
-                          </div>
-                        </div>
-                      </>
+                    {profileData.skills.farming_type && (
+                      <div>
+                        <h4 className="font-medium">Farming Type</h4>
+                        <p className="text-gray-600">{profileData.skills.farming_type}</p>
+                      </div>
                     )}
-                    
-                    <div className="flex space-x-2 mt-4">
-                      <Button variant="default" className="w-full" onClick={() => handleConnect(profile.id)}>
-                        Connect
-                      </Button>
-                      <Button variant="outline" className="w-full" onClick={() => handleMessage(profile.id)}>
-                        Message
-                      </Button>
-                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+
+                {profileData.role === 'laborer' && profileData.skills && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {profileData.skills.availability && (
+                      <div>
+                        <h4 className="font-medium">Availability</h4>
+                        <p className="text-gray-600">{profileData.skills.availability}</p>
+                      </div>
+                    )}
+                    {profileData.skills.wage_expectation && (
+                      <div>
+                        <h4 className="font-medium">Wage Expectation</h4>
+                        <p className="text-gray-600">{profileData.skills.wage_expectation}</p>
+                      </div>
+                    )}
+                    {profileData.skills.will_relocate !== undefined && (
+                      <div>
+                        <h4 className="font-medium">Willing to Relocate</h4>
+                        <p className="text-gray-600">{profileData.skills.will_relocate ? 'Yes' : 'No'}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </main>
         
         <Footer />
       </div>
-    </div>
+    </ProtectedRoute>
   );
 };
 

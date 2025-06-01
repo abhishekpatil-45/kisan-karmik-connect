@@ -3,11 +3,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { isFarmerSkills, isLaborerSkills } from '@/types/profile';
 
 export const useProfileData = (roleParam: string | null) => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -51,43 +49,41 @@ export const useProfileData = (roleParam: string | null) => {
           .eq('id', user.id)
           .single();
 
-        if (error) throw error;
-
-        setUserProfile(data);
-        setUserRole(data.role);
-        
-        // If URL param doesn't match user's actual role, redirect with the correct role
-        if (roleParam !== data.role) {
-          navigate(`/profile-setup?role=${data.role}`, { replace: true });
-          return;
+        if (error && error.code !== 'PGRST116') {
+          throw error;
         }
-        
-        if (data.role === 'farmer') {
-          if (data.phone) setFarmerPhone(data.phone);
-          if (data.location) setFarmerLocation(data.location);
+
+        if (data) {
+          setUserProfile(data);
+          setUserRole(data.role);
           
-          // Load additional farmer profile data if available
-          if (data.skills && isFarmerSkills(data.skills)) {
-            if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops as string[]);
-            if (data.skills.farming_type) setFarmingType(data.skills.farming_type as string);
-            if (data.skills.farm_size) setFarmSize(data.skills.farm_size as string);
-            if (data.skills.bio) setFarmerBio(data.skills.bio as string);
-            if (data.skills.languages) setFarmerLanguages(data.skills.languages as string[]);
-          }
-        } else if (data.role === 'laborer') {
-          if (data.phone) setLaborerPhone(data.phone);
-          if (data.location) setLaborerLocation(data.location);
-          if (data.experience) setExperience(data.experience.toString());
-          
-          // Load additional laborer profile data if available
-          if (data.skills && isLaborerSkills(data.skills)) {
-            if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops as string[]);
-            if (data.skills.availability) setAvailability(data.skills.availability as string);
-            if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate as boolean);
-            if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation as string);
-            if (data.skills.bio) setLaborerBio(data.skills.bio as string);
-            if (data.skills.languages) setLaborerLanguages(data.skills.languages as string[]);
-            if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types as string[]);
+          if (data.role === 'farmer') {
+            if (data.phone) setFarmerPhone(data.phone);
+            if (data.location) setFarmerLocation(data.location);
+            
+            // Load additional farmer profile data if available
+            if (data.skills && isFarmerSkills(data.skills)) {
+              if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops as string[]);
+              if (data.skills.farming_type) setFarmingType(data.skills.farming_type as string);
+              if (data.skills.farm_size) setFarmSize(data.skills.farm_size as string);
+              if (data.skills.bio) setFarmerBio(data.skills.bio as string);
+              if (data.skills.languages) setFarmerLanguages(data.skills.languages as string[]);
+            }
+          } else if (data.role === 'laborer') {
+            if (data.phone) setLaborerPhone(data.phone);
+            if (data.location) setLaborerLocation(data.location);
+            if (data.experience) setExperience(data.experience.toString());
+            
+            // Load additional laborer profile data if available
+            if (data.skills && isLaborerSkills(data.skills)) {
+              if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops as string[]);
+              if (data.skills.availability) setAvailability(data.skills.availability as string);
+              if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate as boolean);
+              if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation as string);
+              if (data.skills.bio) setLaborerBio(data.skills.bio as string);
+              if (data.skills.languages) setLaborerLanguages(data.skills.languages as string[]);
+              if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types as string[]);
+            }
           }
         }
         
@@ -104,7 +100,7 @@ export const useProfileData = (roleParam: string | null) => {
     };
 
     fetchUserProfile();
-  }, [user, toast, navigate, roleParam]);
+  }, [user, toast]);
 
   return {
     isLoading,

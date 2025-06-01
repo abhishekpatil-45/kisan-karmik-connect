@@ -13,6 +13,7 @@ interface AuthContextType {
   profileCompleted: boolean;
   userRole: string | null;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +32,15 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
   const location = useLocation();
   const { toast } = useToast();
 
+  // Helper function to safely check if skills has crops
+  const hasValidCrops = (skills: any): boolean => {
+    return skills && 
+           typeof skills === 'object' && 
+           !Array.isArray(skills) &&
+           Array.isArray(skills.crops) && 
+           skills.crops.length > 0;
+  };
+
   // Check if user profile is complete
   const checkProfileCompletion = async (userId: string) => {
     try {
@@ -44,15 +54,6 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         console.error('Error fetching profile:', error);
         return false;
       }
-
-      // Helper function to safely check if skills has crops
-      const hasValidCrops = (skills: any): boolean => {
-        return skills && 
-               typeof skills === 'object' && 
-               !Array.isArray(skills) &&
-               Array.isArray(skills.crops) && 
-               skills.crops.length > 0;
-      };
 
       // Determine if profile is complete based on role-specific requirements
       if (data.role === 'farmer') {
@@ -85,10 +86,18 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
     }
   };
 
+  // Function to refresh profile data
+  const refreshProfile = async () => {
+    if (session?.user) {
+      await checkProfileCompletion(session.user.id);
+    }
+  };
+
   // Define the function before using it
   const setupAuthStateListener = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -103,15 +112,18 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         setLoading(false);
 
         if (event === 'SIGNED_OUT') {
+          console.log('User signed out, clearing state and redirecting');
           // Clear any local auth data
           localStorage.removeItem('supabase.auth.token');
           
-          // Handle sign out event - force navigate to home
-          navigate('/', { replace: true });
-          
-          // Reset states
+          // Reset states immediately
           setProfileCompleted(false);
           setUserRole(null);
+          setSession(null);
+          setUser(null);
+          
+          // Navigate to home page
+          navigate('/', { replace: true });
           
           toast({
             title: "Signed Out",
@@ -133,7 +145,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
                 .from('profiles')
                 .insert({
                   id: session.user.id,
-                  role: 'farmer', // Default role, will be updated when user selects
+                  role: null, // Role will be set during profile completion
                 });
               
               if (createError) {
@@ -146,7 +158,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
               await checkProfileCompletion(session.user.id);
             }
 
-            // Always redirect to home page after login (not profile setup)
+            // Always redirect to home page after login
             if (location.pathname === '/auth') {
               navigate('/');
             }
@@ -184,17 +196,20 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log("Signing out...");
-      const { error } = await supabase.auth.signOut();
       
-      if (error) {
-        throw error;
-      }
-      
-      // Force clear user state immediately instead of waiting for the listener
+      // Clear local state immediately
       setUser(null);
       setSession(null);
       setProfileCompleted(false);
       setUserRole(null);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase signOut error:', error);
+        // Even if there's an error, we still want to clear local state and redirect
+      }
       
       // Force navigation to home page
       navigate('/', { replace: true });
@@ -205,10 +220,16 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
       });
     } catch (error) {
       console.error('Error signing out:', error);
+      // Clear state and redirect even if there's an error
+      setUser(null);
+      setSession(null);
+      setProfileCompleted(false);
+      setUserRole(null);
+      navigate('/', { replace: true });
+      
       toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive",
+        title: "Signed Out",
+        description: "You have been signed out",
       });
     }
   };
@@ -219,7 +240,8 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
     loading, 
     profileCompleted, 
     userRole, 
-    signOut 
+    signOut,
+    refreshProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

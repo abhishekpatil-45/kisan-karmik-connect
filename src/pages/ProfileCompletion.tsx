@@ -69,17 +69,6 @@ const ProfileCompletion = () => {
     if (!user) return;
     
     try {
-      // First create or update the profile with the selected role
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          role: role,
-          updated_at: new Date().toISOString()
-        });
-        
-      if (error) throw error;
-      
       setSelectedRole(role);
       
       toast({
@@ -132,7 +121,7 @@ const ProfileCompletion = () => {
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selectedRole) return;
     
     if (!farmerPhone || !farmerLocation) {
       toast({
@@ -146,10 +135,11 @@ const ProfileCompletion = () => {
     try {
       setIsSubmitting(true);
       
-      // Update profile with basic and farmer-specific information
+      // Update profile with role and farmer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          role: selectedRole,
           phone: farmerPhone,
           location: farmerLocation,
           skills: {
@@ -170,7 +160,8 @@ const ProfileCompletion = () => {
         description: "Your farmer profile is now complete.",
       });
       
-      navigate('/');
+      // Force a page reload to update auth context
+      window.location.href = '/';
       
     } catch (error: any) {
       console.error('Error updating farmer profile:', error);
@@ -186,7 +177,7 @@ const ProfileCompletion = () => {
 
   const handleLaborerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selectedRole) return;
     
     if (!laborerPhone || !laborerLocation) {
       toast({
@@ -200,10 +191,11 @@ const ProfileCompletion = () => {
     try {
       setIsSubmitting(true);
       
-      // Update profile with basic and laborer-specific information
+      // Update profile with role and laborer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          role: selectedRole,
           phone: laborerPhone,
           location: laborerLocation,
           experience: parseInt(experience) || 0,
@@ -227,7 +219,8 @@ const ProfileCompletion = () => {
         description: "Your laborer profile is now complete.",
       });
       
-      navigate('/');
+      // Force a page reload to update auth context
+      window.location.href = '/';
       
     } catch (error: any) {
       console.error('Error updating laborer profile:', error);
@@ -250,13 +243,16 @@ const ProfileCompletion = () => {
     );
   }
 
+  // Show role selection if no role is selected and user doesn't have a role yet
+  const shouldShowRoleSelection = !selectedRole && !userRole;
+
   return (
     <ProtectedRoute>
       <div className="flex flex-col min-h-screen">
         <NavBar />
         
         <main className="flex-1 bg-gray-50 py-8 px-4">
-          {!selectedRole && !userRole ? (
+          {shouldShowRoleSelection ? (
             <RoleSelection onSelectRole={handleRoleSelection} />
           ) : (
             <div className="container mx-auto max-w-3xl">
