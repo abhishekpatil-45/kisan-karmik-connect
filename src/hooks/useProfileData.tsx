@@ -100,7 +100,7 @@ export const useProfileData = (roleParam: string | null) => {
     };
 
     fetchUserProfile();
-  }, [user, toast]);
+  }, [user, toast, roleParam]); // Added roleParam as dependency
 
   return {
     isLoading,

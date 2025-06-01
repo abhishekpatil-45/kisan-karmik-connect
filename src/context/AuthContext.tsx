@@ -55,33 +55,40 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
         return false;
       }
 
-      // Determine if profile is complete based on role-specific requirements
+      if (!data) {
+        setProfileCompleted(false);
+        setUserRole(null);
+        return false;
+      }
+
+      setUserRole(data.role);
+
+      // Profile is complete only if user has a role AND all required fields
       if (data.role === 'farmer') {
-        // For farmers, require phone, location, and at least one crop
         const isComplete = !!(
           data.phone && 
           data.location && 
           hasValidCrops(data.skills)
         );
         setProfileCompleted(isComplete);
-        setUserRole(data.role);
         return isComplete;
       } else if (data.role === 'laborer') {
-        // For laborers, require phone, location, and at least one crop skill
         const isComplete = !!(
           data.phone && 
           data.location && 
           hasValidCrops(data.skills)
         );
         setProfileCompleted(isComplete);
-        setUserRole(data.role);
         return isComplete;
+      } else {
+        // User has no role assigned, profile is incomplete
+        setProfileCompleted(false);
+        return false;
       }
-      
-      setUserRole(data.role);
-      return false;
     } catch (error) {
       console.error('Error checking profile completion:', error);
+      setProfileCompleted(false);
+      setUserRole(null);
       return false;
     }
   };

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,15 +16,21 @@ import { Loader2 } from 'lucide-react';
 const ProfileCompletion = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userRole, refreshProfile } = useAuth();
   
   const [selectedRole, setSelectedRole] = useState<'farmer' | 'laborer' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Initialize selectedRole from userRole if it exists
+  useEffect(() => {
+    if (userRole && !selectedRole) {
+      setSelectedRole(userRole as 'farmer' | 'laborer');
+    }
+  }, [userRole, selectedRole]);
+
   // Get profile data from custom hook - passing selectedRole as roleParam
   const {
     isLoading,
-    userRole,
     
     // Farmer data
     farmSize,
@@ -70,6 +76,17 @@ const ProfileCompletion = () => {
     
     try {
       setSelectedRole(role);
+      
+      // Save the role to the database immediately
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: role })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Refresh the profile data
+      await refreshProfile();
       
       toast({
         title: "Role Selected",
@@ -123,10 +140,10 @@ const ProfileCompletion = () => {
     e.preventDefault();
     if (!user || !selectedRole) return;
     
-    if (!farmerPhone || !farmerLocation) {
+    if (!farmerPhone || !farmerLocation || selectedFarmerCrops.length === 0) {
       toast({
         title: 'Missing information',
-        description: 'Please provide your phone number and location to complete your profile.',
+        description: 'Please provide your phone number, location, and select at least one crop to complete your profile.',
         variant: 'destructive',
       });
       return;
@@ -155,13 +172,16 @@ const ProfileCompletion = () => {
         
       if (profileError) throw profileError;
       
+      // Refresh the auth context to update profile completion status
+      await refreshProfile();
+      
       toast({
         title: "Profile completed!",
         description: "Your farmer profile is now complete.",
       });
       
-      // Force a page reload to update auth context
-      window.location.href = '/';
+      // Navigate to home page
+      navigate('/');
       
     } catch (error: any) {
       console.error('Error updating farmer profile:', error);
@@ -179,10 +199,10 @@ const ProfileCompletion = () => {
     e.preventDefault();
     if (!user || !selectedRole) return;
     
-    if (!laborerPhone || !laborerLocation) {
+    if (!laborerPhone || !laborerLocation || selectedLaborerCrops.length === 0) {
       toast({
         title: 'Missing information',
-        description: 'Please provide your phone number and location to complete your profile.',
+        description: 'Please provide your phone number, location, and select at least one crop to complete your profile.',
         variant: 'destructive',
       });
       return;
@@ -214,13 +234,16 @@ const ProfileCompletion = () => {
         
       if (profileError) throw profileError;
       
+      // Refresh the auth context to update profile completion status
+      await refreshProfile();
+      
       toast({
         title: "Profile completed!",
         description: "Your laborer profile is now complete.",
       });
       
-      // Force a page reload to update auth context
-      window.location.href = '/';
+      // Navigate to home page
+      navigate('/');
       
     } catch (error: any) {
       console.error('Error updating laborer profile:', error);
@@ -238,13 +261,13 @@ const ProfileCompletion = () => {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading...</span>
+        <span className="ml-2">Loading your profile...</span>
       </div>
     );
   }
 
-  // Show role selection if no role is selected and user doesn't have a role yet
-  const shouldShowRoleSelection = !selectedRole && !userRole;
+  // Show role selection if no role is selected OR if user has no role in database
+  const shouldShowRoleSelection = !selectedRole;
 
   return (
     <ProtectedRoute>
@@ -258,10 +281,10 @@ const ProfileCompletion = () => {
             <div className="container mx-auto max-w-3xl">
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h1 className="text-2xl font-bold mb-6">
-                  Complete Your {(selectedRole || userRole) === 'laborer' ? 'Laborer' : 'Farmer'} Profile
+                  Complete Your {selectedRole === 'laborer' ? 'Laborer' : 'Farmer'} Profile
                 </h1>
                 
-                {(selectedRole || userRole) === 'laborer' ? (
+                {selectedRole === 'laborer' ? (
                   <LaborerProfileForm
                     user={user}
                     isSubmitting={isSubmitting}
