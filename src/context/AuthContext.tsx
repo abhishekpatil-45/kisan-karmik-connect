@@ -118,7 +118,7 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
             description: "You have been signed out successfully",
           });
         }
-        // If the user just signed in, check if they have a profile
+        // If the user just signed in, redirect to home page
         else if (event === 'SIGNED_IN' && session) {
           try {
             const { data, error } = await supabase
@@ -127,35 +127,32 @@ const AuthProvider: React.FC<Props> = ({ children }) => {
               .eq('id', session.user.id)
               .single();
 
-            if (error) throw error;
-
-            setUserRole(data.role);
-            const isProfileComplete = await checkProfileCompletion(session.user.id);
-
-            // If profile exists but incomplete, and user is not on profile setup page
-            if (data && !isProfileComplete && location.pathname !== '/profile-setup') {
-              // Don't auto-redirect from the homepage
-              if (location.pathname !== '/') {
-                navigate('/');
-                toast({
-                  title: "Complete Your Profile",
-                  description: "Please complete your profile to access all features",
+            if (error && error.code !== 'PGRST116') {
+              // Create a basic profile if none exists (excluding "not found" error)
+              const { error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  role: 'farmer', // Default role, will be updated when user selects
                 });
+              
+              if (createError) {
+                console.error('Error creating profile:', createError);
               }
             }
-            // If profile exists and user is on auth page, redirect to home page
-            else if (data && (location.pathname === '/auth' || location.pathname === '/')) {
-              if (location.pathname === '/auth') {
-                navigate('/'); // Redirect to homepage after login
-              }
+
+            if (data) {
+              setUserRole(data.role);
+              await checkProfileCompletion(session.user.id);
             }
-            // If no profile, redirect to profile setup
-            else if (!data && window.location.pathname !== '/profile-setup') {
-              navigate('/profile-setup');
+
+            // Always redirect to home page after login (not profile setup)
+            if (location.pathname === '/auth') {
+              navigate('/');
             }
+            
           } catch (error) {
             console.error('Error checking user profile:', error);
-            navigate('/profile-setup');
           }
         }
       }

@@ -15,13 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -35,7 +28,6 @@ import Footer from '@/components/Footer';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('farmer');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -80,9 +72,7 @@ const Auth = () => {
         email, 
         password,
         options: {
-          data: {
-            role: selectedRole,
-          },
+          emailRedirectTo: `${window.location.origin}/`
         },
       });
       
@@ -206,18 +196,6 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
-                      <SelectTrigger id="role">
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="farmer">Farmer</SelectItem>
-                        <SelectItem value="laborer">Laborer</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button onClick={() => handleSignUp(email, password)} className="w-full">
                     Create Account

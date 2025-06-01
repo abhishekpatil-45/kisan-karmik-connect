@@ -12,25 +12,42 @@ import { useAuth } from '@/context/AuthContext';
 const Index = () => {
   const { user, profileCompleted } = useAuth();
 
-  return <div className="flex flex-col min-h-screen">
+  return (
+    <div className="flex flex-col min-h-screen">
       <NavBar />
       
       <main className="flex-1">
         <HeroSection />
         
-        {/* Profile Completion CTA - Only shown for logged in users with incomplete profiles */}
-        {user && !profileCompleted && (
+        {/* Profile Completion CTA - Only shown for logged in users */}
+        {user && (
           <section className="py-6 bg-amber-50">
             <div className="container mx-auto px-4 text-center">
-              <h3 className="text-xl font-bold mb-3">Your profile is incomplete</h3>
-              <p className="text-gray-700 mb-4">
-                Complete your profile to access all features and get matched with the right opportunities.
-              </p>
-              <Link to="/profile-setup">
-                <Button className="bg-primary hover:bg-primary-600">
-                  Complete Your Profile
-                </Button>
-              </Link>
+              {!profileCompleted ? (
+                <>
+                  <h3 className="text-xl font-bold mb-3">Complete Your Profile</h3>
+                  <p className="text-gray-700 mb-4">
+                    Set up your profile to start connecting with the right opportunities for your needs.
+                  </p>
+                  <Link to="/profile-completion">
+                    <Button className="bg-primary hover:bg-primary-600">
+                      Complete Your Profile
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-bold mb-3">Profile Complete</h3>
+                  <p className="text-gray-700 mb-4">
+                    Your profile is set up! You can view and edit your information anytime.
+                  </p>
+                  <Link to="/profile">
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      View Your Profile
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -56,14 +73,14 @@ const Index = () => {
               Join thousands of farmers and laborers already using Agrisamadhana to find the perfect match for their agricultural needs.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link to="/auth?role=farmer">
+              <Link to="/auth?tab=register">
                 <Button size="lg" className="bg-accent hover:bg-accent-600 text-black w-full">
-                  Register as Farmer
+                  Get Started
                 </Button>
               </Link>
-              <Link to="/auth?role=laborer">
+              <Link to="/auth?tab=login">
                 <Button size="lg" variant="outline" className="border-white w-full bg-orange-950 hover:bg-orange-800 text-slate-50">
-                  Register as Laborer
+                  Sign In
                 </Button>
               </Link>
             </div>
@@ -121,6 +138,8 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

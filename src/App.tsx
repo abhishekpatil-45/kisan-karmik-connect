@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProfileSetup from "./pages/ProfileSetup";
+import ProfileCompletion from "./pages/ProfileCompletion";
 import Profile from "./pages/Profile";
 import Search from "./pages/Search";
 import Messages from "./pages/Messages";
@@ -44,6 +45,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ProfileSetup />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile-completion" 
+              element={
+                <ProtectedRoute>
+                  <ProfileCompletion />
                 </ProtectedRoute>
               } 
             />
