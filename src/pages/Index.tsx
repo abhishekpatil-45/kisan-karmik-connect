@@ -1,37 +1,57 @@
-import React from 'react';
+import React, { useState } from 'react';
 import HeroSection from '@/components/HeroSection';
 import { Button } from '@/components/ui/button';
 import FeatureCard from '@/components/FeatureCard';
 import { Link } from 'react-router-dom';
-import { User, Search, MessageCircle, Star } from 'lucide-react';
+import { User, Search, MessageCircle, Loader2 } from 'lucide-react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
+
 const Index = () => {
-  const {
-    user,
-    profileCompleted
-  } = useAuth();
-  return <div className="flex flex-col min-h-screen">
+  const { user, profileCompleted } = useAuth();
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const handleProfileCompletionClick = () => {
+    setIsNavigating(true);
+    // The Link component will handle navigation, this just sets loading state
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
       <NavBar />
       
       <main className="flex-1">
         <HeroSection />
         
         {/* Profile Completion CTA - Only shown for logged in users */}
-        {user && <section className="py-6 bg-amber-50">
+        {user && (
+          <section className="py-6 bg-amber-50">
             <div className="container mx-auto px-4 text-center">
-              {!profileCompleted ? <>
+              {!profileCompleted ? (
+                <>
                   <h3 className="text-xl font-bold mb-3">Complete Your Profile</h3>
                   <p className="text-gray-700 mb-4">
                     Set up your profile to start connecting with the right opportunities for your needs.
                   </p>
-                  <Link to="/profile-completion">
-                    <Button className="bg-primary hover:bg-primary-600">
-                      Complete Your Profile
+                  <Link to="/profile-completion" onClick={handleProfileCompletionClick}>
+                    <Button 
+                      className="bg-primary hover:bg-primary-600" 
+                      disabled={isNavigating}
+                    >
+                      {isNavigating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Complete Your Profile'
+                      )}
                     </Button>
                   </Link>
-                </> : <>
+                </>
+              ) : (
+                <>
                   <h3 className="text-xl font-bold mb-3">Profile Complete</h3>
                   <p className="text-gray-700 mb-4">
                     Your profile is set up! You can view and edit your information anytime.
@@ -41,9 +61,11 @@ const Index = () => {
                       View Your Profile
                     </Button>
                   </Link>
-                </>}
+                </>
+              )}
             </div>
-          </section>}
+          </section>
+        )}
         
         {/* Features Section */}
         <section className="py-16 bg-gray-50">
@@ -97,6 +119,8 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

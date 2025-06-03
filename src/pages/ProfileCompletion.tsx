@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,61 +19,28 @@ const ProfileCompletion = () => {
   
   const [selectedRole, setSelectedRole] = useState<'farmer' | 'laborer' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRoleUpdating, setIsRoleUpdating] = useState(false);
 
-  // Initialize selectedRole from userRole if it exists
+  // Determine the role to use for data fetching
+  const effectiveRole = useMemo(() => {
+    return selectedRole || userRole;
+  }, [selectedRole, userRole]);
+
+  // Get profile data from custom hook - only when we have a role
+  const profileData = useProfileData(effectiveRole);
+
+  // Initialize selectedRole from userRole efficiently
   useEffect(() => {
     if (userRole && !selectedRole) {
       setSelectedRole(userRole as 'farmer' | 'laborer');
     }
   }, [userRole, selectedRole]);
 
-  // Get profile data from custom hook - passing selectedRole as roleParam
-  const {
-    isLoading,
-    
-    // Farmer data
-    farmSize,
-    setFarmSize,
-    farmingType,
-    setFarmingType,
-    selectedFarmerCrops,
-    setSelectedFarmerCrops,
-    farmerBio,
-    setFarmerBio,
-    farmerLanguages,
-    setFarmerLanguages,
-    farmerPhone,
-    setFarmerPhone,
-    farmerLocation,
-    setFarmerLocation,
-    
-    // Laborer data
-    experience,
-    setExperience,
-    selectedLaborerCrops,
-    setSelectedLaborerCrops,
-    availability,
-    setAvailability,
-    willRelocate,
-    setWillRelocate,
-    wageExpectation,
-    setWageExpectation,
-    laborerBio,
-    setLaborerBio,
-    laborerLanguages,
-    setLaborerLanguages,
-    laborerPhone,
-    setLaborerPhone,
-    laborerLocation,
-    setLaborerLocation,
-    preferredWorkTypes,
-    setPreferredWorkTypes
-  } = useProfileData(selectedRole);
-
   const handleRoleSelection = async (role: 'farmer' | 'laborer') => {
     if (!user) return;
     
     try {
+      setIsRoleUpdating(true);
       setSelectedRole(role);
       
       // Save the role to the database immediately
@@ -99,48 +65,51 @@ const ProfileCompletion = () => {
         description: 'Failed to set your role. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsRoleUpdating(false);
     }
   };
 
-  const handleFarmerCropToggle = (cropId: string) => {
-    setSelectedFarmerCrops(prev => 
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleFarmerCropToggle = useMemo(() => (cropId: string) => {
+    profileData.setSelectedFarmerCrops(prev => 
       prev.includes(cropId) 
         ? prev.filter(id => id !== cropId)
         : [...prev, cropId]
     );
-  };
+  }, [profileData.setSelectedFarmerCrops]);
 
-  const handleLaborerCropToggle = (cropId: string) => {
-    setSelectedLaborerCrops(prev => 
+  const handleLaborerCropToggle = useMemo(() => (cropId: string) => {
+    profileData.setSelectedLaborerCrops(prev => 
       prev.includes(cropId) 
         ? prev.filter(id => id !== cropId)
         : [...prev, cropId]
     );
-  };
+  }, [profileData.setSelectedLaborerCrops]);
 
-  const handleLanguageToggle = (languageId: string, isLaborer: boolean) => {
-    const setter = isLaborer ? setLaborerLanguages : setFarmerLanguages;
+  const handleLanguageToggle = useMemo(() => (languageId: string, isLaborer: boolean) => {
+    const setter = isLaborer ? profileData.setLaborerLanguages : profileData.setFarmerLanguages;
     
     setter(prev => 
       prev.includes(languageId) 
         ? prev.filter(id => id !== languageId)
         : [...prev, languageId]
     );
-  };
+  }, [profileData.setLaborerLanguages, profileData.setFarmerLanguages]);
 
-  const handleWorkTypeToggle = (typeId: string) => {
-    setPreferredWorkTypes(prev => 
+  const handleWorkTypeToggle = useMemo(() => (typeId: string) => {
+    profileData.setPreferredWorkTypes(prev => 
       prev.includes(typeId) 
         ? prev.filter(id => id !== typeId)
         : [...prev, typeId]
     );
-  };
+  }, [profileData.setPreferredWorkTypes]);
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedRole) return;
     
-    if (!farmerPhone || !farmerLocation || selectedFarmerCrops.length === 0) {
+    if (!profileData.farmerPhone || !profileData.farmerLocation || profileData.selectedFarmerCrops.length === 0) {
       toast({
         title: 'Missing information',
         description: 'Please provide your phone number, location, and select at least one crop to complete your profile.',
@@ -152,19 +121,18 @@ const ProfileCompletion = () => {
     try {
       setIsSubmitting(true);
       
-      // Update profile with role and farmer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           role: selectedRole,
-          phone: farmerPhone,
-          location: farmerLocation,
+          phone: profileData.farmerPhone,
+          location: profileData.farmerLocation,
           skills: {
-            crops: selectedFarmerCrops,
-            farming_type: farmingType,
-            farm_size: farmSize,
-            bio: farmerBio,
-            languages: farmerLanguages
+            crops: profileData.selectedFarmerCrops,
+            farming_type: profileData.farmingType,
+            farm_size: profileData.farmSize,
+            bio: profileData.farmerBio,
+            languages: profileData.farmerLanguages
           },
           updated_at: new Date().toISOString()
         })
@@ -172,7 +140,6 @@ const ProfileCompletion = () => {
         
       if (profileError) throw profileError;
       
-      // Refresh the auth context to update profile completion status
       await refreshProfile();
       
       toast({
@@ -180,7 +147,6 @@ const ProfileCompletion = () => {
         description: "Your farmer profile is now complete.",
       });
       
-      // Navigate to home page
       navigate('/');
       
     } catch (error: any) {
@@ -199,7 +165,7 @@ const ProfileCompletion = () => {
     e.preventDefault();
     if (!user || !selectedRole) return;
     
-    if (!laborerPhone || !laborerLocation || selectedLaborerCrops.length === 0) {
+    if (!profileData.laborerPhone || !profileData.laborerLocation || profileData.selectedLaborerCrops.length === 0) {
       toast({
         title: 'Missing information',
         description: 'Please provide your phone number, location, and select at least one crop to complete your profile.',
@@ -211,22 +177,21 @@ const ProfileCompletion = () => {
     try {
       setIsSubmitting(true);
       
-      // Update profile with role and laborer-specific information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           role: selectedRole,
-          phone: laborerPhone,
-          location: laborerLocation,
-          experience: parseInt(experience) || 0,
+          phone: profileData.laborerPhone,
+          location: profileData.laborerLocation,
+          experience: parseInt(profileData.experience) || 0,
           skills: {
-            crops: selectedLaborerCrops,
-            availability: availability,
-            will_relocate: willRelocate,
-            wage_expectation: wageExpectation,
-            bio: laborerBio,
-            languages: laborerLanguages,
-            work_types: preferredWorkTypes
+            crops: profileData.selectedLaborerCrops,
+            availability: profileData.availability,
+            will_relocate: profileData.willRelocate,
+            wage_expectation: profileData.wageExpectation,
+            bio: profileData.laborerBio,
+            languages: profileData.laborerLanguages,
+            work_types: profileData.preferredWorkTypes
           },
           updated_at: new Date().toISOString()
         })
@@ -234,7 +199,6 @@ const ProfileCompletion = () => {
         
       if (profileError) throw profileError;
       
-      // Refresh the auth context to update profile completion status
       await refreshProfile();
       
       toast({
@@ -242,7 +206,6 @@ const ProfileCompletion = () => {
         description: "Your laborer profile is now complete.",
       });
       
-      // Navigate to home page
       navigate('/');
       
     } catch (error: any) {
@@ -257,17 +220,20 @@ const ProfileCompletion = () => {
     }
   };
   
-  if (isLoading) {
+  // Show loading state while role is being updated or profile data is loading
+  if (isRoleUpdating || (effectiveRole && profileData.isLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading your profile...</span>
+        <span className="ml-2">
+          {isRoleUpdating ? 'Setting up your profile...' : 'Loading your profile...'}
+        </span>
       </div>
     );
   }
 
-  // Show role selection if no role is selected OR if user has no role in database
-  const shouldShowRoleSelection = !selectedRole;
+  // Show role selection if no role is selected
+  const shouldShowRoleSelection = !effectiveRole;
 
   return (
     <ProtectedRoute>
@@ -289,25 +255,25 @@ const ProfileCompletion = () => {
                     user={user}
                     isSubmitting={isSubmitting}
                     onSubmit={handleLaborerSubmit}
-                    laborerPhone={laborerPhone}
-                    setLaborerPhone={setLaborerPhone}
-                    laborerLocation={laborerLocation}
-                    setLaborerLocation={setLaborerLocation}
-                    experience={experience}
-                    setExperience={setExperience}
-                    selectedLaborerCrops={selectedLaborerCrops}
+                    laborerPhone={profileData.laborerPhone}
+                    setLaborerPhone={profileData.setLaborerPhone}
+                    laborerLocation={profileData.laborerLocation}
+                    setLaborerLocation={profileData.setLaborerLocation}
+                    experience={profileData.experience}
+                    setExperience={profileData.setExperience}
+                    selectedLaborerCrops={profileData.selectedLaborerCrops}
                     handleLaborerCropToggle={handleLaborerCropToggle}
-                    availability={availability}
-                    setAvailability={setAvailability}
-                    willRelocate={willRelocate}
-                    setWillRelocate={setWillRelocate}
-                    wageExpectation={wageExpectation}
-                    setWageExpectation={setWageExpectation}
-                    laborerBio={laborerBio}
-                    setLaborerBio={setLaborerBio}
-                    laborerLanguages={laborerLanguages}
+                    availability={profileData.availability}
+                    setAvailability={profileData.setAvailability}
+                    willRelocate={profileData.willRelocate}
+                    setWillRelocate={profileData.setWillRelocate}
+                    wageExpectation={profileData.wageExpectation}
+                    setWageExpectation={profileData.setWageExpectation}
+                    laborerBio={profileData.laborerBio}
+                    setLaborerBio={profileData.setLaborerBio}
+                    laborerLanguages={profileData.laborerLanguages}
                     handleLanguageToggle={handleLanguageToggle}
-                    preferredWorkTypes={preferredWorkTypes}
+                    preferredWorkTypes={profileData.preferredWorkTypes}
                     handleWorkTypeToggle={handleWorkTypeToggle}
                   />
                 ) : (
@@ -315,19 +281,19 @@ const ProfileCompletion = () => {
                     user={user}
                     isSubmitting={isSubmitting}
                     onSubmit={handleFarmerSubmit}
-                    farmerPhone={farmerPhone}
-                    setFarmerPhone={setFarmerPhone}
-                    farmerLocation={farmerLocation}
-                    setFarmerLocation={setFarmerLocation}
-                    farmSize={farmSize}
-                    setFarmSize={setFarmSize}
-                    farmingType={farmingType}
-                    setFarmingType={setFarmingType}
-                    selectedFarmerCrops={selectedFarmerCrops}
+                    farmerPhone={profileData.farmerPhone}
+                    setFarmerPhone={profileData.setFarmerPhone}
+                    farmerLocation={profileData.farmerLocation}
+                    setFarmerLocation={profileData.setFarmerLocation}
+                    farmSize={profileData.farmSize}
+                    setFarmSize={profileData.setFarmSize}
+                    farmingType={profileData.farmingType}
+                    setFarmingType={profileData.setFarmingType}
+                    selectedFarmerCrops={profileData.selectedFarmerCrops}
                     handleFarmerCropToggle={handleFarmerCropToggle}
-                    farmerBio={farmerBio}
-                    setFarmerBio={setFarmerBio}
-                    farmerLanguages={farmerLanguages}
+                    farmerBio={profileData.farmerBio}
+                    setFarmerBio={profileData.setFarmerBio}
+                    farmerLanguages={profileData.farmerLanguages}
                     handleLanguageToggle={handleLanguageToggle}
                   />
                 )}
