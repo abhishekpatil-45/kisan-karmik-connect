@@ -33,6 +33,47 @@ export const useProfileData = (roleParam: string | null) => {
   const [laborerLocation, setLaborerLocation] = useState('');
   const [preferredWorkTypes, setPreferredWorkTypes] = useState<string[]>([]);
 
+  // Handler functions for toggling crops, languages, and work types
+  const handleFarmerCropToggle = (crop: string) => {
+    setSelectedFarmerCrops(prev => 
+      prev.includes(crop) 
+        ? prev.filter(c => c !== crop)
+        : [...prev, crop]
+    );
+  };
+
+  const handleLaborerCropToggle = (crop: string) => {
+    setSelectedLaborerCrops(prev => 
+      prev.includes(crop) 
+        ? prev.filter(c => c !== crop)
+        : [...prev, crop]
+    );
+  };
+
+  const handleLanguageToggle = (language: string, role: 'farmer' | 'laborer') => {
+    if (role === 'farmer') {
+      setFarmerLanguages(prev => 
+        prev.includes(language) 
+          ? prev.filter(l => l !== language)
+          : [...prev, language]
+      );
+    } else {
+      setLaborerLanguages(prev => 
+        prev.includes(language) 
+          ? prev.filter(l => l !== language)
+          : [...prev, language]
+      );
+    }
+  };
+
+  const handleWorkTypeToggle = (workType: string) => {
+    setPreferredWorkTypes(prev => 
+      prev.includes(workType) 
+        ? prev.filter(w => w !== workType)
+        : [...prev, workType]
+    );
+  };
+
   // Memoized function to load user profile data
   const fetchUserProfile = useCallback(async () => {
     if (!user) {
@@ -146,6 +187,12 @@ export const useProfileData = (roleParam: string | null) => {
     laborerLocation,
     setLaborerLocation,
     preferredWorkTypes,
-    setPreferredWorkTypes
+    setPreferredWorkTypes,
+
+    // Handler functions
+    handleFarmerCropToggle,
+    handleLaborerCropToggle,
+    handleLanguageToggle,
+    handleWorkTypeToggle
   };
 };

@@ -52,26 +52,66 @@ export const useMessaging = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get conversations
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          farmer_profile:farmer_id(id, full_name, role),
-          laborer_profile:laborer_id(id, full_name, role),
-          messages(content, created_at, sender_id)
-        `)
+        .select('*')
         .or(`farmer_id.eq.${user.id},laborer_id.eq.${user.id}`)
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
+      if (conversationsError) throw conversationsError;
 
-      // Process conversations to add last message info
-      const processedConversations = data?.map(conv => ({
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      // Get all unique user IDs from conversations
+      const userIds = new Set<string>();
+      conversationsData.forEach(conv => {
+        userIds.add(conv.farmer_id);
+        userIds.add(conv.laborer_id);
+      });
+
+      // Fetch profiles for all users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .in('id', Array.from(userIds));
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of profiles
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Get last messages for each conversation
+      const conversationIds = conversationsData.map(conv => conv.id);
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('conversation_id, content, created_at, sender_id')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      if (messagesError) throw messagesError;
+
+      // Group messages by conversation and get the latest one
+      const lastMessagesMap = new Map();
+      messagesData?.forEach(message => {
+        if (!lastMessagesMap.has(message.conversation_id)) {
+          lastMessagesMap.set(message.conversation_id, message);
+        }
+      });
+
+      // Combine everything
+      const processedConversations: Conversation[] = conversationsData.map(conv => ({
         ...conv,
-        last_message: conv.messages && conv.messages.length > 0 
-          ? conv.messages[conv.messages.length - 1]
-          : null
-      })) || [];
+        farmer_profile: profilesMap.get(conv.farmer_id),
+        laborer_profile: profilesMap.get(conv.laborer_id),
+        last_message: lastMessagesMap.get(conv.id) || null
+      }));
 
       setConversations(processedConversations);
     } catch (error) {
