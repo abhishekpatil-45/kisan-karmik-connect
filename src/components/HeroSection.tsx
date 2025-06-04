@@ -28,7 +28,7 @@ const HeroSection = () => {
             </div>
           </div>
           <div className="md:w-1/2 flex justify-center">
-            <img src="/hero-image.svg" alt="Farmers and laborers working together" className="max-w-full md:max-w-md rounded-lg shadow-xl" />
+            <img alt="Farmers and laborers working together" className="max-w-full md:max-w-md rounded-lg shadow-xl" src="/lovable-uploads/6a46a92e-7d28-4da6-982d-3fa744b67b36.jpg" />
           </div>
         </div>
       </div>
