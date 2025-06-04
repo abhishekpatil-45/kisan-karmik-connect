@@ -1,37 +1,71 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
+import { Globe } from 'lucide-react';
+
 const HeroSection = () => {
-  return <div className="relative bg-gradient-to-r from-primary-700 to-primary-900 text-white">
-      <div className="absolute inset-0 bg-[url('/hero-pattern.svg')] opacity-10"></div>
-      <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
-        <div className="flex flex-col md:flex-row items-center">
-          <div className="md:w-1/2 mb-8 md:mb-0">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">
-              Connect with <span className="text-accent">Agricultural Talent</span>
-            </h1>
-            <p className="text-lg md:text-xl mb-6 text-gray-100">
-              Agrisamadhana connects farmers with skilled agricultural laborers based on crop expertise, 
-              solving labor shortages and improving farming efficiency.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/category-selection?flow=worker">
-                <Button size="lg" className="bg-accent hover:bg-accent-600 text-black w-full sm:w-auto">
-                  Find Workers
-                </Button>
-              </Link>
-              <Link to="/category-selection?flow=job">
-                <Button size="lg" variant="outline" className="border-white text-white w-full sm:w-auto bg-amber-950 hover:bg-amber-800">
-                  Find Jobs
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <div className="md:w-1/2 flex justify-center">
-            <img alt="Farmers and laborers working together" className="max-w-full md:max-w-md rounded-lg shadow-xl" src="/lovable-uploads/6a46a92e-7d28-4da6-982d-3fa744b67b36.jpg" />
-          </div>
+  return (
+    <div className="relative min-h-screen flex items-center justify-center">
+      {/* Language Selector - Top Left */}
+      <div className="absolute top-4 left-4 z-20">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+        >
+          <Globe className="h-4 w-4 mr-2" />
+          English
+        </Button>
+      </div>
+
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/lovable-uploads/6a46a92e-7d28-4da6-982d-3fa744b67b36.jpg')"
+        }}
+      />
+      
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/40" />
+      
+      {/* Content */}
+      <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto">
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4">
+          AGRISAMADHANA
+        </h1>
+        
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-semibold mb-6 text-gray-100">
+          Connecting Farmers and Agricultural Laborers
+        </h2>
+        
+        <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
+          Our platform bridges the gap between farmers and agricultural laborers in rural India, 
+          providing a reliable and easy-to-use service for job posting, searching, and booking.
+        </p>
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/category-selection?flow=farmer">
+            <Button 
+              size="lg" 
+              className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto px-8 py-4 text-lg font-semibold"
+            >
+              I'm a Farmer
+            </Button>
+          </Link>
+          <Link to="/category-selection?flow=laborer">
+            <Button 
+              size="lg" 
+              className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto px-8 py-4 text-lg font-semibold"
+            >
+              I'm a Laborer
+            </Button>
+          </Link>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default HeroSection;
