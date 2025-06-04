@@ -18,13 +18,10 @@ const Index = () => {
   };
 
   return (
-    <div className="flex flex-col">
-      {/* NavBar positioned absolutely over hero */}
-      <div className="absolute top-0 left-0 right-0 z-30">
-        <NavBar />
-      </div>
+    <div className="flex flex-col min-h-screen">
+      <NavBar />
       
-      <main>
+      <main className="flex-1">
         <HeroSection />
         
         {/* Profile Completion CTA - Only shown for logged in users */}
