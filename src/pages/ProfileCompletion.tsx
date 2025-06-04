@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +22,7 @@ const ProfileCompletion = () => {
   const [isRoleUpdating, setIsRoleUpdating] = useState(false);
 
   // Determine the role to use for data fetching
-  const effectiveRole = useMemo(() => {
+  const effectiveRole = React.useMemo(() => {
     return selectedRole || userRole;
   }, [selectedRole, userRole]);
 
@@ -71,7 +71,7 @@ const ProfileCompletion = () => {
   };
 
   // Memoized handlers to prevent unnecessary re-renders
-  const handleFarmerCropToggle = useMemo(() => (cropId: string) => {
+  const handleFarmerCropToggle = React.useCallback((cropId: string) => {
     profileData.setSelectedFarmerCrops(prev => 
       prev.includes(cropId) 
         ? prev.filter(id => id !== cropId)
@@ -79,7 +79,7 @@ const ProfileCompletion = () => {
     );
   }, [profileData.setSelectedFarmerCrops]);
 
-  const handleLaborerCropToggle = useMemo(() => (cropId: string) => {
+  const handleLaborerCropToggle = React.useCallback((cropId: string) => {
     profileData.setSelectedLaborerCrops(prev => 
       prev.includes(cropId) 
         ? prev.filter(id => id !== cropId)
@@ -87,7 +87,7 @@ const ProfileCompletion = () => {
     );
   }, [profileData.setSelectedLaborerCrops]);
 
-  const handleLanguageToggle = useMemo(() => (languageId: string, isLaborer: boolean) => {
+  const handleLanguageToggle = React.useCallback((languageId: string, isLaborer: boolean) => {
     const setter = isLaborer ? profileData.setLaborerLanguages : profileData.setFarmerLanguages;
     
     setter(prev => 
@@ -97,7 +97,7 @@ const ProfileCompletion = () => {
     );
   }, [profileData.setLaborerLanguages, profileData.setFarmerLanguages]);
 
-  const handleWorkTypeToggle = useMemo(() => (typeId: string) => {
+  const handleWorkTypeToggle = React.useCallback((typeId: string) => {
     profileData.setPreferredWorkTypes(prev => 
       prev.includes(typeId) 
         ? prev.filter(id => id !== typeId)
