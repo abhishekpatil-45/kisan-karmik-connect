@@ -10,8 +10,8 @@ interface ProfileEditProps {
   user: any;
   isSubmitting: boolean;
   profileHookData: any;
-  onFarmerSubmit: (e: React.FormEvent) => void;
-  onLaborerSubmit: (e: React.FormEvent) => void;
+  onFarmerSubmit: (e: React.FormEvent) => Promise<void>;
+  onLaborerSubmit: (e: React.FormEvent) => Promise<void>;
   onCancel: () => void;
   handleFarmerLanguageToggle: (languageId: string, isLaborer: boolean) => void;
   handleLaborerLanguageToggle: (languageId: string, isLaborer: boolean) => void;

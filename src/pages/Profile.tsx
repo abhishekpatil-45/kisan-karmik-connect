@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -35,8 +34,8 @@ const Profile = () => {
     profileHookData.handleLanguageToggle(languageId, isLaborer ? 'laborer' : 'farmer');
   };
 
-  const onFarmerSubmit = (e: React.FormEvent) => handleFarmerSubmit(e, profileHookData);
-  const onLaborerSubmit = (e: React.FormEvent) => handleLaborerSubmit(e, profileHookData);
+  const onFarmerSubmit = async (e: React.FormEvent) => await handleFarmerSubmit(e, profileHookData);
+  const onLaborerSubmit = async (e: React.FormEvent) => await handleLaborerSubmit(e, profileHookData);
 
   if (isLoading) {
     return (
