@@ -74,6 +74,23 @@ export const useProfileData = (roleParam: string | null) => {
     );
   };
 
+  // SECURITY FIX: Add type guards for JSONB data
+  const isValidSkillsObject = (skills: any): boolean => {
+    return skills && typeof skills === 'object' && !Array.isArray(skills);
+  };
+
+  const safeArrayAccess = (arr: any): string[] => {
+    return Array.isArray(arr) ? arr.filter(item => typeof item === 'string') : [];
+  };
+
+  const safeStringAccess = (str: any): string => {
+    return typeof str === 'string' ? str : '';
+  };
+
+  const safeBooleanAccess = (bool: any): boolean => {
+    return typeof bool === 'boolean' ? bool : false;
+  };
+
   // Memoized function to load user profile data
   const fetchUserProfile = useCallback(async () => {
     if (!user) {
@@ -100,38 +117,41 @@ export const useProfileData = (roleParam: string | null) => {
         const currentRole = roleParam || userRole || data.role;
         
         if (currentRole === 'farmer') {
-          if (data.phone) setFarmerPhone(data.phone);
-          if (data.location) setFarmerLocation(data.location);
+          if (data.phone) setFarmerPhone(safeStringAccess(data.phone));
+          if (data.location) setFarmerLocation(safeStringAccess(data.location));
           
-          if (data.skills && isFarmerSkills(data.skills)) {
-            if (data.skills.crops) setSelectedFarmerCrops(data.skills.crops as string[]);
-            if (data.skills.farming_type) setFarmingType(data.skills.farming_type as string);
-            if (data.skills.farm_size) setFarmSize(data.skills.farm_size as string);
-            if (data.skills.bio) setFarmerBio(data.skills.bio as string);
-            if (data.skills.languages) setFarmerLanguages(data.skills.languages as string[]);
+          // SECURITY FIX: Safe JSONB access with type checking
+          if (data.skills && isValidSkillsObject(data.skills) && isFarmerSkills(data.skills)) {
+            setSelectedFarmerCrops(safeArrayAccess(data.skills.crops));
+            setFarmingType(safeStringAccess(data.skills.farming_type));
+            setFarmSize(safeStringAccess(data.skills.farm_size));
+            setFarmerBio(safeStringAccess(data.skills.bio));
+            setFarmerLanguages(safeArrayAccess(data.skills.languages));
           }
         } else if (currentRole === 'laborer') {
-          if (data.phone) setLaborerPhone(data.phone);
-          if (data.location) setLaborerLocation(data.location);
+          if (data.phone) setLaborerPhone(safeStringAccess(data.phone));
+          if (data.location) setLaborerLocation(safeStringAccess(data.location));
           if (data.experience) setExperience(data.experience.toString());
           
-          if (data.skills && isLaborerSkills(data.skills)) {
-            if (data.skills.crops) setSelectedLaborerCrops(data.skills.crops as string[]);
-            if (data.skills.availability) setAvailability(data.skills.availability as string);
-            if (data.skills.will_relocate !== undefined) setWillRelocate(data.skills.will_relocate as boolean);
-            if (data.skills.wage_expectation) setWageExpectation(data.skills.wage_expectation as string);
-            if (data.skills.bio) setLaborerBio(data.skills.bio as string);
-            if (data.skills.languages) setLaborerLanguages(data.skills.languages as string[]);
-            if (data.skills.work_types) setPreferredWorkTypes(data.skills.work_types as string[]);
+          // SECURITY FIX: Safe JSONB access with type checking
+          if (data.skills && isValidSkillsObject(data.skills) && isLaborerSkills(data.skills)) {
+            setSelectedLaborerCrops(safeArrayAccess(data.skills.crops));
+            setAvailability(safeStringAccess(data.skills.availability));
+            setWillRelocate(safeBooleanAccess(data.skills.will_relocate));
+            setWageExpectation(safeStringAccess(data.skills.wage_expectation));
+            setLaborerBio(safeStringAccess(data.skills.bio));
+            setLaborerLanguages(safeArrayAccess(data.skills.languages));
+            setPreferredWorkTypes(safeArrayAccess(data.skills.work_types));
           }
         }
       }
       
     } catch (error) {
       console.error('Error loading user profile:', error);
+      // SECURITY FIX: Don't expose detailed error information
       toast({
         title: 'Error',
-        description: 'Failed to load your profile information.',
+        description: 'Failed to load profile information. Please try again.',
         variant: 'destructive',
       });
     } finally {

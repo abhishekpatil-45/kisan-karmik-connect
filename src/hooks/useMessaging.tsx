@@ -1,8 +1,17 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  created_at: string;
+  read_at?: string;
+  message_type?: string;
+}
 
 interface Conversation {
   id: string;
@@ -10,278 +19,212 @@ interface Conversation {
   laborer_id: string;
   created_at: string;
   updated_at: string;
-  farmer_profile?: {
-    id: string;
-    full_name: string;
-    role: string;
-  };
-  laborer_profile?: {
-    id: string;
-    full_name: string;
-    role: string;
-  };
-  last_message?: {
-    content: string;
-    created_at: string;
-    sender_id: string;
-  };
-}
-
-interface Message {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string;
-  message_type: string;
-  read_at: string | null;
-  created_at: string;
-  updated_at: string;
+  messages: Message[];
 }
 
 export const useMessaging = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  // Fetch user's conversations
-  const fetchConversations = useCallback(async () => {
-    if (!user) return;
-
-    setIsLoading(true);
-    try {
-      // First get conversations
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversations')
-        .select('*')
-        .or(`farmer_id.eq.${user.id},laborer_id.eq.${user.id}`)
-        .order('updated_at', { ascending: false });
-
-      if (conversationsError) throw conversationsError;
-
-      if (!conversationsData || conversationsData.length === 0) {
-        setConversations([]);
-        return;
-      }
-
-      // Get all unique user IDs from conversations
-      const userIds = new Set<string>();
-      conversationsData.forEach(conv => {
-        userIds.add(conv.farmer_id);
-        userIds.add(conv.laborer_id);
-      });
-
-      // Fetch profiles for all users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, role')
-        .in('id', Array.from(userIds));
-
-      if (profilesError) throw profilesError;
-
-      // Create a map of profiles
-      const profilesMap = new Map();
-      profilesData?.forEach(profile => {
-        profilesMap.set(profile.id, profile);
-      });
-
-      // Get last messages for each conversation
-      const conversationIds = conversationsData.map(conv => conv.id);
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('conversation_id, content, created_at, sender_id')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false });
-
-      if (messagesError) throw messagesError;
-
-      // Group messages by conversation and get the latest one
-      const lastMessagesMap = new Map();
-      messagesData?.forEach(message => {
-        if (!lastMessagesMap.has(message.conversation_id)) {
-          lastMessagesMap.set(message.conversation_id, message);
-        }
-      });
-
-      // Combine everything
-      const processedConversations: Conversation[] = conversationsData.map(conv => ({
-        ...conv,
-        farmer_profile: profilesMap.get(conv.farmer_id),
-        laborer_profile: profilesMap.get(conv.laborer_id),
-        last_message: lastMessagesMap.get(conv.id) || null
-      }));
-
-      setConversations(processedConversations);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
+  // SECURITY FIX: Enhanced message sending with proper authentication
+  const sendMessage = async (conversationId: string, content: string) => {
+    if (!user || !content.trim()) {
       toast({
         title: 'Error',
-        description: 'Failed to load conversations',
+        description: 'Please enter a message',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      
+      // SECURITY FIX: Get current session token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // SECURITY FIX: Input validation and sanitization
+      const trimmedContent = content.trim();
+      if (trimmedContent.length === 0) {
+        throw new Error('Message cannot be empty');
+      }
+
+      if (trimmedContent.length > 5000) {
+        throw new Error('Message too long (max 5000 characters)');
+      }
+
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabase.supabaseKey,
+        },
+        body: JSON.stringify({
+          action: 'sendMessage',
+          data: {
+            conversation_id: conversationId,
+            content: trimmedContent,
+            message_type: 'text'
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+
+      const result = await response.json();
+      
+      // Update local state with new message
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === conversationId) {
+          return {
+            ...conv,
+            messages: [...conv.messages, result.message],
+            updated_at: new Date().toISOString()
+          };
+        }
+        return conv;
+      }));
+
+      toast({
+        title: 'Success',
+        description: 'Message sent successfully',
+      });
+
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send message',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // SECURITY FIX: Enhanced conversation loading with proper error handling
+  const loadConversations = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      
+      // SECURITY FIX: Get current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabase.supabaseKey,
+        },
+        body: JSON.stringify({
+          action: 'getConversations'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load conversations');
+      }
+
+      const result = await response.json();
+      
+      // SECURITY FIX: Validate response data structure
+      if (result.conversations && Array.isArray(result.conversations)) {
+        setConversations(result.conversations);
+      } else {
+        throw new Error('Invalid response format');
+      }
+
+    } catch (error: any) {
+      console.error('Error loading conversations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load conversations. Please try again.',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  };
 
-  // Fetch messages for a specific conversation
-  const fetchMessages = useCallback(async (conversationId: string) => {
-    if (!conversationId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load messages',
-        variant: 'destructive',
-      });
-    }
-  }, [toast]);
-
-  // Send a new message
-  const sendMessage = useCallback(async (conversationId: string, content: string) => {
-    if (!user || !content.trim()) return;
+  // SECURITY FIX: Enhanced mark as read with proper authentication
+  const markAsRead = async (messageId: string) => {
+    if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content: content.trim(),
-          message_type: 'text'
-        });
-
-      if (error) throw error;
-
-      // Update conversation's updated_at timestamp
-      await supabase
-        .from('conversations')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
-
-      // Refresh messages and conversations
-      await fetchMessages(conversationId);
-      await fetchConversations();
-
-      toast({
-        title: 'Message sent',
-        description: 'Your message has been sent successfully',
-      });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send message',
-        variant: 'destructive',
-      });
-    }
-  }, [user, fetchMessages, fetchConversations, toast]);
-
-  // Start a new conversation
-  const startConversation = useCallback(async (otherUserId: string) => {
-    if (!user) return null;
-
-    try {
-      // Get current user's profile to determine role
-      const { data: currentProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Get other user's profile to determine role
-      const { data: otherProfile, error: otherProfileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', otherUserId)
-        .single();
-
-      if (otherProfileError) throw otherProfileError;
-
-      // Determine farmer_id and laborer_id based on roles
-      const farmerId = currentProfile.role === 'farmer' ? user.id : otherUserId;
-      const laborerId = currentProfile.role === 'laborer' ? user.id : otherUserId;
-
-      // Check if conversation already exists
-      const { data: existingConv, error: existingError } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('farmer_id', farmerId)
-        .eq('laborer_id', laborerId)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-
-      if (existingConv) {
-        setActiveConversationId(existingConv.id);
-        await fetchMessages(existingConv.id);
-        return existingConv.id;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
       }
 
-      // Create new conversation
-      const { data: newConv, error: createError } = await supabase
-        .from('conversations')
-        .insert({
-          farmer_id: farmerId,
-          laborer_id: laborerId,
-        })
-        .select('id')
-        .single();
-
-      if (createError) throw createError;
-
-      setActiveConversationId(newConv.id);
-      await fetchConversations();
-      return newConv.id;
-
-    } catch (error) {
-      console.error('Error starting conversation:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to start conversation',
-        variant: 'destructive',
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabase.supabaseKey,
+        },
+        body: JSON.stringify({
+          action: 'markAsRead',
+          data: { message_id: messageId }
+        }),
       });
-      return null;
-    }
-  }, [user, fetchMessages, fetchConversations, toast]);
 
-  // Load conversations on mount
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to mark message as read');
+      }
+
+      // Update local state
+      setConversations(prev => prev.map(conv => ({
+        ...conv,
+        messages: conv.messages.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, read_at: new Date().toISOString() }
+            : msg
+        )
+      })));
+
+    } catch (error: any) {
+      console.error('Error marking message as read:', error);
+      // Don't show toast for this error as it's not critical
+    }
+  };
+
+  // Load conversations when user changes
   useEffect(() => {
     if (user) {
-      fetchConversations();
+      loadConversations();
+    } else {
+      setConversations([]);
     }
-  }, [user, fetchConversations]);
-
-  // Load messages when active conversation changes
-  useEffect(() => {
-    if (activeConversationId) {
-      fetchMessages(activeConversationId);
-    }
-  }, [activeConversationId, fetchMessages]);
+  }, [user]);
 
   return {
     conversations,
-    messages,
-    activeConversationId,
-    setActiveConversationId,
     isLoading,
+    isSending,
     sendMessage,
-    startConversation,
-    fetchConversations,
-    fetchMessages,
+    loadConversations,
+    markAsRead
   };
 };

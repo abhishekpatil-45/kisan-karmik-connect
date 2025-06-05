@@ -1,135 +1,249 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders,
-      status: 200,
-    });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
+    // SECURITY FIX: Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
-    const { method, action, data } = await req.json();
+    // Initialize Supabase client with service role for admin operations
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
 
-    switch (method) {
-      case "GET_CONVERSATIONS": {
-        const { userId } = data;
-        
-        // Get conversations where the user is either the sender or receiver
-        const { data: conversations, error } = await supabaseClient
-          .from("conversations")
+    // SECURITY FIX: Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Parse and validate request body
+    const body = await req.json();
+    const { action, data } = body;
+
+    // SECURITY FIX: Input validation
+    if (!action || typeof action !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid action parameter' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    let result;
+
+    switch (action) {
+      case 'getConversations':
+        // SECURITY FIX: Only get conversations for authenticated user
+        const { data: conversations, error: convError } = await supabase
+          .from('conversations')
           .select(`
-            id, 
-            updated_at,
-            profiles!sender_id(id, full_name, role),
-            profiles!receiver_id(id, full_name, role)
+            *,
+            messages(
+              id,
+              content,
+              created_at,
+              sender_id
+            )
           `)
-          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-          .order("updated_at", { ascending: false });
+          .or(`farmer_id.eq.${user.id},laborer_id.eq.${user.id}`)
+          .order('updated_at', { ascending: false });
 
-        if (error) throw error;
-        return new Response(JSON.stringify({ conversations }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
-      case "GET_MESSAGES": {
-        const { conversationId } = data;
-        
-        // Get messages from a specific conversation
-        const { data: messages, error } = await supabaseClient
-          .from("messages")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: true });
-
-        if (error) throw error;
-        return new Response(JSON.stringify({ messages }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
-      case "SEND_MESSAGE": {
-        const { sender_id, receiver_id, content } = data;
-        
-        // Check if conversation exists
-        let conversationId;
-        const { data: existingConvo, error: convoError } = await supabaseClient
-          .from("conversations")
-          .select("id")
-          .or(`and(sender_id.eq.${sender_id},receiver_id.eq.${receiver_id}),and(sender_id.eq.${receiver_id},receiver_id.eq.${sender_id})`)
-          .maybeSingle();
-
-        if (convoError) throw convoError;
-
-        // If conversation doesn't exist, create one
-        if (!existingConvo) {
-          const { data: newConvo, error: createError } = await supabaseClient
-            .from("conversations")
-            .insert({
-              sender_id,
-              receiver_id,
-            })
-            .select('id')
-            .single();
-
-          if (createError) throw createError;
-          conversationId = newConvo.id;
-        } else {
-          conversationId = existingConvo.id;
+        if (convError) {
+          throw convError;
         }
 
-        // Insert message
-        const { data: message, error: messageError } = await supabaseClient
-          .from("messages")
+        result = { conversations };
+        break;
+
+      case 'sendMessage':
+        // SECURITY FIX: Validate message data
+        if (!data || !data.conversation_id || !data.content) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required message data' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // SECURITY FIX: Verify user is part of conversation before sending message
+        const { data: conversation, error: convCheckError } = await supabase
+          .from('conversations')
+          .select('farmer_id, laborer_id')
+          .eq('id', data.conversation_id)
+          .single();
+
+        if (convCheckError || !conversation) {
+          return new Response(
+            JSON.stringify({ error: 'Conversation not found' }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // SECURITY FIX: Ensure user is authorized to send message to this conversation
+        if (conversation.farmer_id !== user.id && conversation.laborer_id !== user.id) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized to send message to this conversation' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Insert message with authenticated user as sender
+        const { data: message, error: messageError } = await supabase
+          .from('messages')
           .insert({
-            conversation_id: conversationId,
-            sender_id,
-            content,
+            conversation_id: data.conversation_id,
+            sender_id: user.id,
+            content: data.content.trim(), // Basic sanitization
+            message_type: data.message_type || 'text'
           })
           .select()
           .single();
 
-        if (messageError) throw messageError;
+        if (messageError) {
+          throw messageError;
+        }
 
-        // Update conversation's updated_at timestamp
-        await supabaseClient
-          .from("conversations")
+        // Update conversation timestamp
+        await supabase
+          .from('conversations')
           .update({ updated_at: new Date().toISOString() })
-          .eq("id", conversationId);
+          .eq('id', data.conversation_id);
 
-        return new Response(JSON.stringify({ message }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
+        result = { message };
+        break;
+
+      case 'markAsRead':
+        // SECURITY FIX: Validate data and user authorization
+        if (!data || !data.message_id) {
+          return new Response(
+            JSON.stringify({ error: 'Missing message_id' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // SECURITY FIX: Only mark as read if user is part of the conversation
+        const { data: messageToMark, error: messageCheckError } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            conversations!inner(farmer_id, laborer_id)
+          `)
+          .eq('id', data.message_id)
+          .single();
+
+        if (messageCheckError || !messageToMark) {
+          return new Response(
+            JSON.stringify({ error: 'Message not found' }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const conv = messageToMark.conversations;
+        if (conv.farmer_id !== user.id && conv.laborer_id !== user.id) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized to mark this message as read' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const { error: readError } = await supabase
+          .from('messages')
+          .update({ read_at: new Date().toISOString() })
+          .eq('id', data.message_id);
+
+        if (readError) {
+          throw readError;
+        }
+
+        result = { success: true };
+        break;
 
       default:
-        return new Response(JSON.stringify({ error: "Method not allowed" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 405,
-        });
+        return new Response(
+          JSON.stringify({ error: 'Invalid action' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
     }
+
+    return new Response(
+      JSON.stringify(result),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
+    console.error('Edge function error:', error);
+    
+    // SECURITY FIX: Don't expose detailed error information
+    const errorMessage = error instanceof Error ? 'Internal server error' : 'Unknown error occurred';
+    
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });
