@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import FarmerProfileForm from '@/components/profile/FarmerProfileForm';
 import LaborerProfileForm from '@/components/profile/LaborerProfileForm';
 import { useProfileData } from '@/hooks/useProfileData';
+import { isFarmerSkills, isLaborerSkills } from '@/types/profile';
 
 const Profile = () => {
   const { id } = useParams();
@@ -64,7 +65,7 @@ const Profile = () => {
           if (data.role === 'farmer') {
             profileHookData.setFarmerPhone(data.phone || '');
             profileHookData.setFarmerLocation(data.location || '');
-            if (data.skills) {
+            if (data.skills && isFarmerSkills(data.skills)) {
               profileHookData.setSelectedFarmerCrops(data.skills.crops || []);
               profileHookData.setFarmingType(data.skills.farming_type || '');
               profileHookData.setFarmSize(data.skills.farm_size || '');
@@ -75,7 +76,7 @@ const Profile = () => {
             profileHookData.setLaborerPhone(data.phone || '');
             profileHookData.setLaborerLocation(data.location || '');
             profileHookData.setExperience(data.experience?.toString() || '');
-            if (data.skills) {
+            if (data.skills && isLaborerSkills(data.skills)) {
               profileHookData.setSelectedLaborerCrops(data.skills.crops || []);
               profileHookData.setAvailability(data.skills.availability || '');
               profileHookData.setWillRelocate(data.skills.will_relocate || false);
@@ -96,6 +97,14 @@ const Profile = () => {
 
     fetchProfile();
   }, [id, user?.id]);
+
+  const handleFarmerLanguageToggle = (languageId: string, isLaborer: boolean) => {
+    profileHookData.handleLanguageToggle(languageId, isLaborer ? 'laborer' : 'farmer');
+  };
+
+  const handleLaborerLanguageToggle = (languageId: string, isLaborer: boolean) => {
+    profileHookData.handleLanguageToggle(languageId, isLaborer ? 'laborer' : 'farmer');
+  };
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,7 +295,7 @@ const Profile = () => {
                       farmerBio={profileHookData.farmerBio}
                       setFarmerBio={profileHookData.setFarmerBio}
                       farmerLanguages={profileHookData.farmerLanguages}
-                      handleLanguageToggle={profileHookData.handleLanguageToggle}
+                      handleLanguageToggle={handleFarmerLanguageToggle}
                     />
                   ) : (
                     <LaborerProfileForm
@@ -310,7 +319,7 @@ const Profile = () => {
                       laborerBio={profileHookData.laborerBio}
                       setLaborerBio={profileHookData.setLaborerBio}
                       laborerLanguages={profileHookData.laborerLanguages}
-                      handleLanguageToggle={profileHookData.handleLanguageToggle}
+                      handleLanguageToggle={handleLaborerLanguageToggle}
                       preferredWorkTypes={profileHookData.preferredWorkTypes}
                       handleWorkTypeToggle={profileHookData.handleWorkTypeToggle}
                     />

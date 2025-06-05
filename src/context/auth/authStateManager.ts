@@ -98,7 +98,7 @@ export const setupAuthStateListener = (callbacks: AuthStateCallbacks) => {
   };
 };
 
-export const performSignOut = async (callbacks: AuthStateCallbacks) => {
+export const performSignOut = async (callbacks: Pick<AuthStateCallbacks, 'setUser' | 'setSession' | 'setProfileCompleted' | 'setUserRole' | 'navigate' | 'toast'>) => {
   const { setUser, setSession, setProfileCompleted, setUserRole, navigate, toast } = callbacks;
 
   try {
