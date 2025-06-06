@@ -7,7 +7,7 @@ import { Globe } from 'lucide-react';
 const HeroSection = () => {
   return (
     <div className="relative min-h-screen bg-cover bg-center bg-no-repeat" 
-         style={{ backgroundImage: `url('/lovable-uploads/cd4a3cfd-fa92-47be-90b5-c1a09d40a198.png')` }}>
+         style={{ backgroundImage: `url('/lovable-uploads/d4d9a0b2-f048-4433-b335-2e5fca764782.png')` }}>
       
       {/* Dark overlay for text readability */}
       <div className="absolute inset-0 bg-black bg-opacity-40"></div>
