@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import HeroSection from '@/components/HeroSection';
 import { Button } from '@/components/ui/button';
@@ -19,9 +20,13 @@ const Index = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <NavBar />
+      {/* NavBar positioned over the hero */}
+      <div className="absolute top-0 left-0 right-0 z-30">
+        <NavBar />
+      </div>
       
       <main className="flex-1">
+        {/* Full-screen hero section */}
         <HeroSection />
         
         {/* Profile Completion CTA - Only shown for logged in users */}
