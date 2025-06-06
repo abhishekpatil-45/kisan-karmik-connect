@@ -6,6 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { validateInput } from '@/utils/securityHelpers';
 import { Conversation, Message } from '@/types/messaging';
 
+// Get the Supabase URL and key from the client configuration
+const SUPABASE_URL = "https://yrrzazxxromdfhgqypjg.supabase.co";
+
 export const useMessaging = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -79,14 +82,13 @@ export const useMessaging = () => {
 
       // Create new conversation via edge function for enhanced security
       // Use the correct URL format with explicit project URL
-      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      const functionsUrl = `${SUPABASE_URL}/functions/v1/messages`;
       
       const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabase.supabaseKey || '',
         },
         body: JSON.stringify({
           action: 'createConversation',
@@ -149,14 +151,13 @@ export const useMessaging = () => {
       }
 
       // Using explicit URL for edge function
-      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      const functionsUrl = `${SUPABASE_URL}/functions/v1/messages`;
 
       const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabase.supabaseKey || '',
         },
         body: JSON.stringify({
           action: 'sendMessage',
@@ -224,14 +225,13 @@ export const useMessaging = () => {
       }
 
       // Using explicit URL for edge function
-      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      const functionsUrl = `${SUPABASE_URL}/functions/v1/messages`;
 
       const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabase.supabaseKey || '',
         },
         body: JSON.stringify({
           action: 'getConversations'
@@ -284,14 +284,13 @@ export const useMessaging = () => {
       }
 
       // Using explicit URL for edge function
-      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      const functionsUrl = `${SUPABASE_URL}/functions/v1/messages`;
 
       const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabase.supabaseKey || '',
         },
         body: JSON.stringify({
           action: 'markAsRead',

@@ -5,7 +5,7 @@ export interface Message {
   sender_id: string;
   created_at: string;
   read_at?: string;
-  message_type?: string;
+  message_type: string;
   conversation_id: string;
   updated_at: string;
 }
