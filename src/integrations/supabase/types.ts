@@ -48,6 +48,48 @@ export type Database = {
           },
         ]
       }
+      job_applications: {
+        Row: {
+          applied_at: string
+          completed_at: string | null
+          id: string
+          job_id: string
+          laborer_id: string
+          status: string | null
+        }
+        Insert: {
+          applied_at?: string
+          completed_at?: string | null
+          id?: string
+          job_id: string
+          laborer_id: string
+          status?: string | null
+        }
+        Update: {
+          applied_at?: string
+          completed_at?: string | null
+          id?: string
+          job_id?: string
+          laborer_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_laborer_id_fkey"
+            columns: ["laborer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           created_at: string
@@ -203,7 +245,7 @@ export type Database = {
           location: string | null
           phone: string | null
           rating: number | null
-          role: string
+          role: string | null
           skills: Json | null
           updated_at: string
         }
@@ -216,7 +258,7 @@ export type Database = {
           location?: string | null
           phone?: string | null
           rating?: number | null
-          role: string
+          role?: string | null
           skills?: Json | null
           updated_at?: string
         }
@@ -229,18 +271,73 @@ export type Database = {
           location?: string | null
           phone?: string | null
           rating?: number | null
-          role?: string
+          role?: string | null
           skills?: Json | null
           updated_at?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          rating: number
+          reviewee_id: string
+          reviewer_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          rating: number
+          reviewee_id: string
+          reviewer_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          rating?: number
+          reviewee_id?: string
+          reviewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewee_id_fkey"
+            columns: ["reviewee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       crop_category:

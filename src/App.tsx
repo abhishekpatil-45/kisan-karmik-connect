@@ -12,6 +12,7 @@ import ProfileCompletion from "./pages/ProfileCompletion";
 import Profile from "./pages/Profile";
 import Search from "./pages/Search";
 import Messages from "./pages/Messages";
+import Jobs from "./pages/Jobs";
 import NotFound from "./pages/NotFound";
 import CategorySelection from "./pages/CategorySelection";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/category-selection" element={<CategorySelection />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/jobs" element={<Jobs />} />
             
             {/* Protected routes - only accessible when logged in */}
             <Route 
