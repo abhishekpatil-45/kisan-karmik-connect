@@ -4,30 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { validateInput } from '@/utils/securityHelpers';
-
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  created_at: string;
-  read_at?: string;
-  message_type?: string;
-}
-
-interface Conversation {
-  id: string;
-  farmer_id: string;
-  laborer_id: string;
-  created_at: string;
-  updated_at: string;
-  messages: Message[];
-  farmer_profile?: {
-    full_name: string;
-  };
-  laborer_profile?: {
-    full_name: string;
-  };
-}
+import { Conversation, Message } from '@/types/messaging';
 
 export const useMessaging = () => {
   const { user } = useAuth();
@@ -101,9 +78,10 @@ export const useMessaging = () => {
       }
 
       // Create new conversation via edge function for enhanced security
-      const apiUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      // Use the correct URL format with explicit project URL
+      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
       
-      const response = await fetch(apiUrl, {
+      const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,10 +148,10 @@ export const useMessaging = () => {
         throw new Error('Message cannot be empty');
       }
 
-      // Using URL constructor to safely construct the URL
-      const apiUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      // Using explicit URL for edge function
+      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,10 +223,10 @@ export const useMessaging = () => {
         throw new Error('No active session');
       }
 
-      // Using URL constructor to safely construct the URL
-      const apiUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      // Using explicit URL for edge function
+      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,10 +283,10 @@ export const useMessaging = () => {
         throw new Error('No active session');
       }
 
-      // Using URL constructor to safely construct the URL
-      const apiUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
+      // Using explicit URL for edge function
+      const functionsUrl = `${supabase.supabaseUrl}/functions/v1/messages`;
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -83,10 +83,12 @@ serve(async (req) => {
               created_at,
               sender_id,
               read_at,
-              message_type
+              message_type,
+              conversation_id,
+              updated_at
             ),
-            farmer_profile:profiles!farmer_id(full_name),
-            laborer_profile:profiles!laborer_id(full_name)
+            farmer_profile:profiles!farmer_id(id, full_name, role),
+            laborer_profile:profiles!laborer_id(id, full_name, role)
           `)
           .or(`farmer_id.eq.${user.id},laborer_id.eq.${user.id}`)
           .order('updated_at', { ascending: false });
@@ -174,10 +176,12 @@ serve(async (req) => {
                 created_at,
                 sender_id,
                 read_at,
-                message_type
+                message_type,
+                conversation_id,
+                updated_at
               ),
-              farmer_profile:profiles!farmer_id(full_name),
-              laborer_profile:profiles!laborer_id(full_name)
+              farmer_profile:profiles!farmer_id(id, full_name, role),
+              laborer_profile:profiles!laborer_id(id, full_name, role)
             `)
             .eq('id', existingConvo.id)
             .single();
@@ -213,10 +217,12 @@ serve(async (req) => {
                 created_at,
                 sender_id,
                 read_at,
-                message_type
+                message_type,
+                conversation_id,
+                updated_at
               ),
-              farmer_profile:profiles!farmer_id(full_name),
-              laborer_profile:profiles!laborer_id(full_name)
+              farmer_profile:profiles!farmer_id(id, full_name, role),
+              laborer_profile:profiles!laborer_id(id, full_name, role)
             `)
             .eq('id', newConvo.id)
             .single();

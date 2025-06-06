@@ -8,6 +8,7 @@ import ConversationsList from '@/components/messaging/ConversationsList';
 import ChatInterface from '@/components/messaging/ChatInterface';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2, MessageCircle } from 'lucide-react';
+import { Conversation } from '@/types/messaging';
 
 const Messages = () => {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ const Messages = () => {
     return conversations.find(conv => conv.id === activeConversationId);
   };
 
-  const getOtherUser = (conversation: any) => {
+  const getOtherUser = (conversation: Conversation | undefined) => {
     if (!conversation || !user) return { name: 'Unknown User', role: 'user' };
     
     if (conversation.farmer_id === user.id) {
