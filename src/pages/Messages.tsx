@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useMessaging } from '@/hooks/useMessaging';
 import NavBar from '@/components/NavBar';

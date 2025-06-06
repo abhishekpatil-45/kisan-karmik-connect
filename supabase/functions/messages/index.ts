@@ -81,8 +81,12 @@ serve(async (req) => {
               id,
               content,
               created_at,
-              sender_id
-            )
+              sender_id,
+              read_at,
+              message_type
+            ),
+            farmer_profile:profiles!farmer_id(full_name),
+            laborer_profile:profiles!laborer_id(full_name)
           `)
           .or(`farmer_id.eq.${user.id},laborer_id.eq.${user.id}`)
           .order('updated_at', { ascending: false });
@@ -92,6 +96,142 @@ serve(async (req) => {
         }
 
         result = { conversations };
+        break;
+
+      case 'createConversation':
+        // Validate conversation data
+        if (!data || !data.farmer_id || !data.laborer_id) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required conversation data' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Check if user is part of this conversation
+        if (data.farmer_id !== user.id && data.laborer_id !== user.id) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized to create this conversation' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Check if user roles match the farmer/laborer IDs
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError || !userProfile) {
+          return new Response(
+            JSON.stringify({ error: 'User profile not found' }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Validate role assignment
+        if ((userProfile.role === 'farmer' && user.id !== data.farmer_id) || 
+            (userProfile.role === 'laborer' && user.id !== data.laborer_id)) {
+          return new Response(
+            JSON.stringify({ error: 'Role mismatch' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Check if conversation already exists
+        const { data: existingConvo, error: existingError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('farmer_id', data.farmer_id)
+          .eq('laborer_id', data.laborer_id)
+          .maybeSingle();
+
+        if (existingError) {
+          throw existingError;
+        }
+
+        if (existingConvo) {
+          // Get full conversation data
+          const { data: fullConvo, error: fullConvoError } = await supabase
+            .from('conversations')
+            .select(`
+              *,
+              messages(
+                id,
+                content,
+                created_at,
+                sender_id,
+                read_at,
+                message_type
+              ),
+              farmer_profile:profiles!farmer_id(full_name),
+              laborer_profile:profiles!laborer_id(full_name)
+            `)
+            .eq('id', existingConvo.id)
+            .single();
+
+          if (fullConvoError) {
+            throw fullConvoError;
+          }
+
+          result = { conversation: fullConvo };
+        } else {
+          // Create new conversation
+          const { data: newConvo, error: createError } = await supabase
+            .from('conversations')
+            .insert({
+              farmer_id: data.farmer_id,
+              laborer_id: data.laborer_id
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            throw createError;
+          }
+
+          // Get full conversation data with profiles
+          const { data: fullConvo, error: fullConvoError } = await supabase
+            .from('conversations')
+            .select(`
+              *,
+              messages:messages(
+                id,
+                content,
+                created_at,
+                sender_id,
+                read_at,
+                message_type
+              ),
+              farmer_profile:profiles!farmer_id(full_name),
+              laborer_profile:profiles!laborer_id(full_name)
+            `)
+            .eq('id', newConvo.id)
+            .single();
+
+          if (fullConvoError) {
+            throw fullConvoError;
+          }
+
+          // Initialize with empty messages array if null
+          if (!fullConvo.messages) {
+            fullConvo.messages = [];
+          }
+
+          result = { conversation: fullConvo };
+        }
         break;
 
       case 'sendMessage':
