@@ -14,6 +14,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, role: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (data: any) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +43,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role, full_name, phone, location')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setUserRole(data.role);
+        // Check if profile is completed based on role
+        if (data.role === 'farmer') {
+          setProfileCompleted(!!(data.full_name && data.phone && data.location));
+        } else if (data.role === 'laborer') {
+          setProfileCompleted(!!(data.full_name && data.phone && data.location));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      securityMonitor.logSuspiciousActivity(userId, 'Profile fetch failed', { error });
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user.id);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
@@ -76,33 +110,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role, full_name, phone, location')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setUserRole(data.role);
-        // Check if profile is completed based on role
-        if (data.role === 'farmer') {
-          setProfileCompleted(!!(data.full_name && data.phone && data.location));
-        } else if (data.role === 'laborer') {
-          setProfileCompleted(!!(data.full_name && data.phone && data.location));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      securityMonitor.logSuspiciousActivity(userId, 'Profile fetch failed', { error });
-    }
-  };
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
@@ -217,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -69,37 +68,38 @@ const ProfileSetup = () => {
   } = useProfileData(roleParam);
 
   const handleFarmerCropToggle = (cropId: string) => {
-    setSelectedFarmerCrops(prev => 
-      prev.includes(cropId) 
-        ? prev.filter(id => id !== cropId)
-        : [...prev, cropId]
-    );
+    const newCrops = selectedFarmerCrops.includes(cropId) 
+      ? selectedFarmerCrops.filter(id => id !== cropId)
+      : [...selectedFarmerCrops, cropId];
+    setSelectedFarmerCrops(newCrops);
   };
 
   const handleLaborerCropToggle = (cropId: string) => {
-    setSelectedLaborerCrops(prev => 
-      prev.includes(cropId) 
-        ? prev.filter(id => id !== cropId)
-        : [...prev, cropId]
-    );
+    const newCrops = selectedLaborerCrops.includes(cropId) 
+      ? selectedLaborerCrops.filter(id => id !== cropId)
+      : [...selectedLaborerCrops, cropId];
+    setSelectedLaborerCrops(newCrops);
   };
 
   const handleLanguageToggle = (languageId: string, isLaborer: boolean) => {
-    const setter = isLaborer ? setLaborerLanguages : setFarmerLanguages;
-    
-    setter(prev => 
-      prev.includes(languageId) 
-        ? prev.filter(id => id !== languageId)
-        : [...prev, languageId]
-    );
+    if (isLaborer) {
+      const newLanguages = laborerLanguages.includes(languageId) 
+        ? laborerLanguages.filter(id => id !== languageId)
+        : [...laborerLanguages, languageId];
+      setLaborerLanguages(newLanguages);
+    } else {
+      const newLanguages = farmerLanguages.includes(languageId) 
+        ? farmerLanguages.filter(id => id !== languageId)
+        : [...farmerLanguages, languageId];
+      setFarmerLanguages(newLanguages);
+    }
   };
 
   const handleWorkTypeToggle = (typeId: string) => {
-    setPreferredWorkTypes(prev => 
-      prev.includes(typeId) 
-        ? prev.filter(id => id !== typeId)
-        : [...prev, typeId]
-    );
+    const newTypes = preferredWorkTypes.includes(typeId) 
+      ? preferredWorkTypes.filter(id => id !== typeId)
+      : [...preferredWorkTypes, typeId];
+    setPreferredWorkTypes(newTypes);
   };
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {

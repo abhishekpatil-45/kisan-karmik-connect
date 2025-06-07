@@ -72,38 +72,44 @@ const ProfileCompletion = () => {
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleFarmerCropToggle = useMemo(() => (cropId: string) => {
-    profileData.setSelectedFarmerCrops(prev => 
-      prev.includes(cropId) 
-        ? prev.filter(id => id !== cropId)
-        : [...prev, cropId]
-    );
-  }, [profileData.setSelectedFarmerCrops]);
+    const currentCrops = profileData.selectedFarmerCrops;
+    const newCrops = currentCrops.includes(cropId) 
+      ? currentCrops.filter(id => id !== cropId)
+      : [...currentCrops, cropId];
+    profileData.setSelectedFarmerCrops(newCrops);
+  }, [profileData.selectedFarmerCrops, profileData.setSelectedFarmerCrops]);
 
   const handleLaborerCropToggle = useMemo(() => (cropId: string) => {
-    profileData.setSelectedLaborerCrops(prev => 
-      prev.includes(cropId) 
-        ? prev.filter(id => id !== cropId)
-        : [...prev, cropId]
-    );
-  }, [profileData.setSelectedLaborerCrops]);
+    const currentCrops = profileData.selectedLaborerCrops;
+    const newCrops = currentCrops.includes(cropId) 
+      ? currentCrops.filter(id => id !== cropId)
+      : [...currentCrops, cropId];
+    profileData.setSelectedLaborerCrops(newCrops);
+  }, [profileData.selectedLaborerCrops, profileData.setSelectedLaborerCrops]);
 
   const handleLanguageToggle = useMemo(() => (languageId: string, isLaborer: boolean) => {
-    const setter = isLaborer ? profileData.setLaborerLanguages : profileData.setFarmerLanguages;
-    
-    setter(prev => 
-      prev.includes(languageId) 
-        ? prev.filter(id => id !== languageId)
-        : [...prev, languageId]
-    );
-  }, [profileData.setLaborerLanguages, profileData.setFarmerLanguages]);
+    if (isLaborer) {
+      const currentLanguages = profileData.laborerLanguages;
+      const newLanguages = currentLanguages.includes(languageId) 
+        ? currentLanguages.filter(id => id !== languageId)
+        : [...currentLanguages, languageId];
+      profileData.setLaborerLanguages(newLanguages);
+    } else {
+      const currentLanguages = profileData.farmerLanguages;
+      const newLanguages = currentLanguages.includes(languageId) 
+        ? currentLanguages.filter(id => id !== languageId)
+        : [...currentLanguages, languageId];
+      profileData.setFarmerLanguages(newLanguages);
+    }
+  }, [profileData.laborerLanguages, profileData.setLaborerLanguages, profileData.farmerLanguages, profileData.setFarmerLanguages]);
 
   const handleWorkTypeToggle = useMemo(() => (typeId: string) => {
-    profileData.setPreferredWorkTypes(prev => 
-      prev.includes(typeId) 
-        ? prev.filter(id => id !== typeId)
-        : [...prev, typeId]
-    );
-  }, [profileData.setPreferredWorkTypes]);
+    const currentTypes = profileData.preferredWorkTypes;
+    const newTypes = currentTypes.includes(typeId) 
+      ? currentTypes.filter(id => id !== typeId)
+      : [...currentTypes, typeId];
+    profileData.setPreferredWorkTypes(newTypes);
+  }, [profileData.preferredWorkTypes, profileData.setPreferredWorkTypes]);
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
