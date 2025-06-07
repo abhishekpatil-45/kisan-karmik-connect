@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { isFarmerSkills, isLaborerSkills } from '@/types/profile';
+import { validateInput, securityChecks, securityMonitor } from '@/utils/securityHelpers';
 
 export const useProfileData = (roleParam: string | null) => {
   const { toast } = useToast();
@@ -33,67 +34,106 @@ export const useProfileData = (roleParam: string | null) => {
   const [laborerLocation, setLaborerLocation] = useState('');
   const [preferredWorkTypes, setPreferredWorkTypes] = useState<string[]>([]);
 
-  // Handler functions for toggling crops, languages, and work types
-  const handleFarmerCropToggle = (crop: string) => {
-    setSelectedFarmerCrops(prev => 
-      prev.includes(crop) 
-        ? prev.filter(c => c !== crop)
-        : [...prev, crop]
-    );
-  };
-
-  const handleLaborerCropToggle = (crop: string) => {
-    setSelectedLaborerCrops(prev => 
-      prev.includes(crop) 
-        ? prev.filter(c => c !== crop)
-        : [...prev, crop]
-    );
-  };
-
-  const handleLanguageToggle = (language: string, role: 'farmer' | 'laborer') => {
-    if (role === 'farmer') {
-      setFarmerLanguages(prev => 
-        prev.includes(language) 
-          ? prev.filter(l => l !== language)
-          : [...prev, language]
-      );
-    } else {
-      setLaborerLanguages(prev => 
-        prev.includes(language) 
-          ? prev.filter(l => l !== language)
-          : [...prev, language]
-      );
-    }
-  };
-
-  const handleWorkTypeToggle = (workType: string) => {
-    setPreferredWorkTypes(prev => 
-      prev.includes(workType) 
-        ? prev.filter(w => w !== workType)
-        : [...prev, workType]
-    );
-  };
-
-  // SECURITY FIX: Add type guards for JSONB data
+  // SECURITY: Enhanced type guards and validation for JSONB data
   const isValidSkillsObject = (skills: any): boolean => {
-    return skills && typeof skills === 'object' && !Array.isArray(skills);
+    return securityChecks.isValidJsonb(skills);
   };
 
-  const safeArrayAccess = (arr: any): string[] => {
-    return Array.isArray(arr) ? arr.filter(item => typeof item === 'string') : [];
+  const safeArrayAccess = (arr: any, maxItems: number = 50): string[] => {
+    return validateInput.stringArray(arr, maxItems);
   };
 
-  const safeStringAccess = (str: any): string => {
-    return typeof str === 'string' ? str : '';
+  const safeStringAccess = (str: any, maxLength: number = 1000): string => {
+    return validateInput.string(str, maxLength);
   };
 
   const safeBooleanAccess = (bool: any): boolean => {
-    return typeof bool === 'boolean' ? bool : false;
+    return validateInput.boolean(bool);
   };
 
-  // Memoized function to load user profile data
+  const safeNumberAccess = (num: any, min: number = 0, max: number = 100): number => {
+    return validateInput.number(num, min, max);
+  };
+
+  // SECURITY: Sanitized handler functions for toggling crops, languages, and work types
+  const handleFarmerCropToggle = useCallback((crop: string) => {
+    const sanitizedCrop = validateInput.string(crop, 50);
+    if (!sanitizedCrop) return;
+    
+    setSelectedFarmerCrops(prev => {
+      const newCrops = prev.includes(sanitizedCrop) 
+        ? prev.filter(c => c !== sanitizedCrop)
+        : [...prev, sanitizedCrop];
+      
+      // Limit to maximum 20 crops for security
+      return newCrops.slice(0, 20);
+    });
+  }, []);
+
+  const handleLaborerCropToggle = useCallback((crop: string) => {
+    const sanitizedCrop = validateInput.string(crop, 50);
+    if (!sanitizedCrop) return;
+    
+    setSelectedLaborerCrops(prev => {
+      const newCrops = prev.includes(sanitizedCrop) 
+        ? prev.filter(c => c !== sanitizedCrop)
+        : [...prev, sanitizedCrop];
+      
+      // Limit to maximum 20 crops for security
+      return newCrops.slice(0, 20);
+    });
+  }, []);
+
+  const handleLanguageToggle = useCallback((language: string, role: 'farmer' | 'laborer') => {
+    const sanitizedLanguage = validateInput.string(language, 50);
+    if (!sanitizedLanguage) return;
+    
+    if (role === 'farmer') {
+      setFarmerLanguages(prev => {
+        const newLanguages = prev.includes(sanitizedLanguage) 
+          ? prev.filter(l => l !== sanitizedLanguage)
+          : [...prev, sanitizedLanguage];
+        
+        // Limit to maximum 10 languages for security
+        return newLanguages.slice(0, 10);
+      });
+    } else {
+      setLaborerLanguages(prev => {
+        const newLanguages = prev.includes(sanitizedLanguage) 
+          ? prev.filter(l => l !== sanitizedLanguage)
+          : [...prev, sanitizedLanguage];
+        
+        // Limit to maximum 10 languages for security
+        return newLanguages.slice(0, 10);
+      });
+    }
+  }, []);
+
+  const handleWorkTypeToggle = useCallback((workType: string) => {
+    const sanitizedWorkType = validateInput.string(workType, 50);
+    if (!sanitizedWorkType) return;
+    
+    setPreferredWorkTypes(prev => {
+      const newWorkTypes = prev.includes(sanitizedWorkType) 
+        ? prev.filter(w => w !== sanitizedWorkType)
+        : [...prev, sanitizedWorkType];
+      
+      // Limit to maximum 15 work types for security
+      return newWorkTypes.slice(0, 15);
+    });
+  }, []);
+
+  // SECURITY: Enhanced fetch function with additional validation
   const fetchUserProfile = useCallback(async () => {
     if (!user) {
+      return;
+    }
+
+    // SECURITY: Rate limiting for profile fetches
+    if (!securityChecks.rateLimitCheck(user.id, 'profile_fetch', {
+      profile_fetch: { max: 30, window: 300000 } // 30 fetches per 5 minutes
+    })) {
+      securityMonitor.logSuspiciousActivity(user.id, 'Profile fetch rate limit exceeded');
       return;
     }
 
@@ -117,38 +157,43 @@ export const useProfileData = (roleParam: string | null) => {
         const currentRole = roleParam || userRole || data.role;
         
         if (currentRole === 'farmer') {
-          if (data.phone) setFarmerPhone(safeStringAccess(data.phone));
-          if (data.location) setFarmerLocation(safeStringAccess(data.location));
+          if (data.phone) setFarmerPhone(validateInput.phone(data.phone));
+          if (data.location) setFarmerLocation(validateInput.location(data.location));
           
-          // SECURITY FIX: Safe JSONB access with type checking
+          // SECURITY: Enhanced JSONB access with comprehensive validation
           if (data.skills && isValidSkillsObject(data.skills) && isFarmerSkills(data.skills)) {
-            setSelectedFarmerCrops(safeArrayAccess(data.skills.crops));
-            setFarmingType(safeStringAccess(data.skills.farming_type));
-            setFarmSize(safeStringAccess(data.skills.farm_size));
-            setFarmerBio(safeStringAccess(data.skills.bio));
-            setFarmerLanguages(safeArrayAccess(data.skills.languages));
+            setSelectedFarmerCrops(safeArrayAccess(data.skills.crops, 20));
+            setFarmingType(safeStringAccess(data.skills.farming_type, 100));
+            setFarmSize(safeStringAccess(data.skills.farm_size, 100));
+            setFarmerBio(safeStringAccess(data.skills.bio, 2000));
+            setFarmerLanguages(safeArrayAccess(data.skills.languages, 10));
           }
         } else if (currentRole === 'laborer') {
-          if (data.phone) setLaborerPhone(safeStringAccess(data.phone));
-          if (data.location) setLaborerLocation(safeStringAccess(data.location));
-          if (data.experience) setExperience(data.experience.toString());
+          if (data.phone) setLaborerPhone(validateInput.phone(data.phone));
+          if (data.location) setLaborerLocation(validateInput.location(data.location));
+          if (data.experience) setExperience(safeNumberAccess(data.experience, 0, 50).toString());
           
-          // SECURITY FIX: Safe JSONB access with type checking
+          // SECURITY: Enhanced JSONB access with comprehensive validation
           if (data.skills && isValidSkillsObject(data.skills) && isLaborerSkills(data.skills)) {
-            setSelectedLaborerCrops(safeArrayAccess(data.skills.crops));
-            setAvailability(safeStringAccess(data.skills.availability));
+            setSelectedLaborerCrops(safeArrayAccess(data.skills.crops, 20));
+            setAvailability(safeStringAccess(data.skills.availability, 100));
             setWillRelocate(safeBooleanAccess(data.skills.will_relocate));
-            setWageExpectation(safeStringAccess(data.skills.wage_expectation));
-            setLaborerBio(safeStringAccess(data.skills.bio));
-            setLaborerLanguages(safeArrayAccess(data.skills.languages));
-            setPreferredWorkTypes(safeArrayAccess(data.skills.work_types));
+            setWageExpectation(safeStringAccess(data.skills.wage_expectation, 100));
+            setLaborerBio(safeStringAccess(data.skills.bio, 2000));
+            setLaborerLanguages(safeArrayAccess(data.skills.languages, 10));
+            setPreferredWorkTypes(safeArrayAccess(data.skills.work_types, 15));
           }
         }
       }
       
     } catch (error) {
       console.error('Error loading user profile:', error);
-      // SECURITY FIX: Don't expose detailed error information
+      securityMonitor.logSuspiciousActivity(
+        user.id,
+        'Profile fetch error',
+        { error: error instanceof Error ? error.message : 'Unknown error' }
+      );
+      
       toast({
         title: 'Error',
         description: 'Failed to load profile information. Please try again.',
@@ -173,41 +218,41 @@ export const useProfileData = (roleParam: string | null) => {
     
     // Farmer data
     farmSize,
-    setFarmSize,
+    setFarmSize: (value: string) => setFarmSize(validateInput.string(value, 100)),
     farmingType,
-    setFarmingType,
+    setFarmingType: (value: string) => setFarmingType(validateInput.string(value, 100)),
     selectedFarmerCrops,
-    setSelectedFarmerCrops,
+    setSelectedFarmerCrops: (crops: string[]) => setSelectedFarmerCrops(validateInput.stringArray(crops, 20)),
     farmerBio,
-    setFarmerBio,
+    setFarmerBio: (value: string) => setFarmerBio(validateInput.string(value, 2000)),
     farmerLanguages,
-    setFarmerLanguages,
+    setFarmerLanguages: (languages: string[]) => setFarmerLanguages(validateInput.stringArray(languages, 10)),
     farmerPhone,
-    setFarmerPhone,
+    setFarmerPhone: (value: string) => setFarmerPhone(validateInput.phone(value)),
     farmerLocation,
-    setFarmerLocation,
+    setFarmerLocation: (value: string) => setFarmerLocation(validateInput.location(value)),
     
     // Laborer data
     experience,
-    setExperience,
+    setExperience: (value: string) => setExperience(validateInput.number(value, 0, 50).toString()),
     selectedLaborerCrops,
-    setSelectedLaborerCrops,
+    setSelectedLaborerCrops: (crops: string[]) => setSelectedLaborerCrops(validateInput.stringArray(crops, 20)),
     availability,
-    setAvailability,
+    setAvailability: (value: string) => setAvailability(validateInput.string(value, 100)),
     willRelocate,
-    setWillRelocate,
+    setWillRelocate: (value: boolean) => setWillRelocate(validateInput.boolean(value)),
     wageExpectation,
-    setWageExpectation,
+    setWageExpectation: (value: string) => setWageExpectation(validateInput.string(value, 100)),
     laborerBio,
-    setLaborerBio,
+    setLaborerBio: (value: string) => setLaborerBio(validateInput.string(value, 2000)),
     laborerLanguages,
-    setLaborerLanguages,
+    setLaborerLanguages: (languages: string[]) => setLaborerLanguages(validateInput.stringArray(languages, 10)),
     laborerPhone,
-    setLaborerPhone,
+    setLaborerPhone: (value: string) => setLaborerPhone(validateInput.phone(value)),
     laborerLocation,
-    setLaborerLocation,
+    setLaborerLocation: (value: string) => setLaborerLocation(validateInput.location(value)),
     preferredWorkTypes,
-    setPreferredWorkTypes,
+    setPreferredWorkTypes: (types: string[]) => setPreferredWorkTypes(validateInput.stringArray(types, 15)),
 
     // Handler functions
     handleFarmerCropToggle,
