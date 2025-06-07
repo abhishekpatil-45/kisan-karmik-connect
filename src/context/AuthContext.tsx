@@ -26,7 +26,7 @@ export const useAuth = () => {
   return context;
 };
 
-// Type guards for skills
+// Enhanced type guards for skills with better validation
 const isValidSkills = (skills: any): skills is { crops?: string[] } => {
   return skills && typeof skills === 'object' && !Array.isArray(skills);
 };
@@ -34,6 +34,20 @@ const isValidSkills = (skills: any): skills is { crops?: string[] } => {
 const getCropsFromSkills = (skills: any): string[] => {
   if (!isValidSkills(skills)) return [];
   return Array.isArray(skills.crops) ? skills.crops : [];
+};
+
+// Helper to determine if profile is complete based on role
+const isProfileComplete = (data: any): boolean => {
+  const hasBasicInfo = !!(data.full_name && data.phone && data.location);
+  
+  if (!data.role) return false;
+  
+  if (data.role === 'farmer' || data.role === 'laborer') {
+    const crops = getCropsFromSkills(data.skills);
+    return hasBasicInfo && crops.length > 0;
+  }
+  
+  return false;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -72,25 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data) {
         setUserRole(data.role);
+        const completed = isProfileComplete(data);
+        setProfileCompleted(completed);
         
-        // Enhanced profile completion check with proper type handling
-        const hasBasicInfo = !!(data.full_name && data.phone && data.location);
-        
-        // Check role-specific completion with proper type guards
-        if (data.role === 'farmer') {
-          const crops = getCropsFromSkills(data.skills);
-          const farmerComplete = hasBasicInfo && crops.length > 0;
-          setProfileCompleted(farmerComplete);
-        } else if (data.role === 'laborer') {
-          const crops = getCropsFromSkills(data.skills);
-          const laborerComplete = hasBasicInfo && crops.length > 0;
-          setProfileCompleted(laborerComplete);
-        } else {
-          // No role set yet
-          setProfileCompleted(false);
-        }
-        
-        console.log('Profile completed status:', profileCompleted);
+        console.log('Profile completed status:', completed);
+        console.log('User role set to:', data.role);
       } else {
         // No profile data exists
         setUserRole(null);

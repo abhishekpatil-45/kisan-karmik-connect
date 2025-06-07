@@ -92,23 +92,6 @@ const ProfileCompletion = () => {
     }
   };
 
-  // Memoized handlers to prevent unnecessary re-renders
-  const handleFarmerCropToggle = useMemo(() => (cropId: string) => {
-    profileData.handleFarmerCropToggle(cropId);
-  }, [profileData.handleFarmerCropToggle]);
-
-  const handleLaborerCropToggle = useMemo(() => (cropId: string) => {
-    profileData.handleLaborerCropToggle(cropId);
-  }, [profileData.handleLaborerCropToggle]);
-
-  const handleLanguageToggle = useMemo(() => (languageId: string, isLaborer: boolean) => {
-    profileData.handleLanguageToggle(languageId, isLaborer ? 'laborer' : 'farmer');
-  }, [profileData.handleLanguageToggle]);
-
-  const handleWorkTypeToggle = useMemo(() => (typeId: string) => {
-    profileData.handleWorkTypeToggle(typeId);
-  }, [profileData.handleWorkTypeToggle]);
-
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedRole) return;
@@ -271,10 +254,10 @@ const ProfileCompletion = () => {
             <div className="container mx-auto max-w-3xl">
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h1 className="text-2xl font-bold mb-6">
-                  Complete Your {selectedRole === 'laborer' ? 'Laborer' : 'Farmer'} Profile
+                  Complete Your {effectiveRole === 'laborer' ? 'Laborer' : 'Farmer'} Profile
                 </h1>
                 
-                {selectedRole === 'laborer' ? (
+                {effectiveRole === 'laborer' ? (
                   <LaborerProfileForm
                     user={user}
                     isSubmitting={isSubmitting}
@@ -286,7 +269,7 @@ const ProfileCompletion = () => {
                     experience={profileData.experience}
                     setExperience={profileData.setExperience}
                     selectedLaborerCrops={profileData.selectedLaborerCrops}
-                    handleLaborerCropToggle={handleLaborerCropToggle}
+                    handleLaborerCropToggle={profileData.handleLaborerCropToggle}
                     availability={profileData.availability}
                     setAvailability={profileData.setAvailability}
                     willRelocate={profileData.willRelocate}
@@ -296,9 +279,9 @@ const ProfileCompletion = () => {
                     laborerBio={profileData.laborerBio}
                     setLaborerBio={profileData.setLaborerBio}
                     laborerLanguages={profileData.laborerLanguages}
-                    handleLanguageToggle={handleLanguageToggle}
+                    handleLanguageToggle={(lang, isLaborer) => profileData.handleLanguageToggle(lang, 'laborer')}
                     preferredWorkTypes={profileData.preferredWorkTypes}
-                    handleWorkTypeToggle={handleWorkTypeToggle}
+                    handleWorkTypeToggle={profileData.handleWorkTypeToggle}
                   />
                 ) : (
                   <FarmerProfileForm
@@ -314,11 +297,11 @@ const ProfileCompletion = () => {
                     farmingType={profileData.farmingType}
                     setFarmingType={profileData.setFarmingType}
                     selectedFarmerCrops={profileData.selectedFarmerCrops}
-                    handleFarmerCropToggle={handleFarmerCropToggle}
+                    handleFarmerCropToggle={profileData.handleFarmerCropToggle}
                     farmerBio={profileData.farmerBio}
                     setFarmerBio={profileData.setFarmerBio}
                     farmerLanguages={profileData.farmerLanguages}
-                    handleLanguageToggle={handleLanguageToggle}
+                    handleLanguageToggle={(lang, isLaborer) => profileData.handleLanguageToggle(lang, 'farmer')}
                   />
                 )}
               </div>
