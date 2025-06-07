@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -31,25 +32,44 @@ const ProfileCompletion = () => {
 
   // Initialize selectedRole from userRole efficiently
   useEffect(() => {
+    console.log('ProfileCompletion - userRole changed:', userRole);
     if (userRole && !selectedRole) {
       setSelectedRole(userRole as 'farmer' | 'laborer');
     }
   }, [userRole, selectedRole]);
 
   const handleRoleSelection = async (role: 'farmer' | 'laborer') => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to select a role.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     try {
       setIsRoleUpdating(true);
-      setSelectedRole(role);
+      console.log('Setting role to:', role);
       
-      // Save the role to the database immediately
-      const { error } = await supabase
+      // First create or update the profile with the role
+      const { error: upsertError } = await supabase
         .from('profiles')
-        .update({ role: role })
-        .eq('id', user.id);
+        .upsert({
+          id: user.id,
+          role: role,
+          full_name: user.user_metadata?.full_name || user.email,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
         
-      if (error) throw error;
+      if (upsertError) {
+        console.error('Error setting role:', upsertError);
+        throw upsertError;
+      }
+      
+      setSelectedRole(role);
       
       // Refresh the profile data
       await refreshProfile();
@@ -58,6 +78,8 @@ const ProfileCompletion = () => {
         title: "Role Selected",
         description: `You've selected to continue as a ${role}.`,
       });
+      
+      console.log('Role set successfully to:', role);
     } catch (error: any) {
       console.error('Error setting role:', error);
       toast({
@@ -72,48 +94,30 @@ const ProfileCompletion = () => {
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleFarmerCropToggle = useMemo(() => (cropId: string) => {
-    const currentCrops = profileData.selectedFarmerCrops;
-    const newCrops = currentCrops.includes(cropId) 
-      ? currentCrops.filter(id => id !== cropId)
-      : [...currentCrops, cropId];
-    profileData.setSelectedFarmerCrops(newCrops);
-  }, [profileData.selectedFarmerCrops, profileData.setSelectedFarmerCrops]);
+    profileData.handleFarmerCropToggle(cropId);
+  }, [profileData.handleFarmerCropToggle]);
 
   const handleLaborerCropToggle = useMemo(() => (cropId: string) => {
-    const currentCrops = profileData.selectedLaborerCrops;
-    const newCrops = currentCrops.includes(cropId) 
-      ? currentCrops.filter(id => id !== cropId)
-      : [...currentCrops, cropId];
-    profileData.setSelectedLaborerCrops(newCrops);
-  }, [profileData.selectedLaborerCrops, profileData.setSelectedLaborerCrops]);
+    profileData.handleLaborerCropToggle(cropId);
+  }, [profileData.handleLaborerCropToggle]);
 
   const handleLanguageToggle = useMemo(() => (languageId: string, isLaborer: boolean) => {
-    if (isLaborer) {
-      const currentLanguages = profileData.laborerLanguages;
-      const newLanguages = currentLanguages.includes(languageId) 
-        ? currentLanguages.filter(id => id !== languageId)
-        : [...currentLanguages, languageId];
-      profileData.setLaborerLanguages(newLanguages);
-    } else {
-      const currentLanguages = profileData.farmerLanguages;
-      const newLanguages = currentLanguages.includes(languageId) 
-        ? currentLanguages.filter(id => id !== languageId)
-        : [...currentLanguages, languageId];
-      profileData.setFarmerLanguages(newLanguages);
-    }
-  }, [profileData.laborerLanguages, profileData.setLaborerLanguages, profileData.farmerLanguages, profileData.setFarmerLanguages]);
+    profileData.handleLanguageToggle(languageId, isLaborer ? 'laborer' : 'farmer');
+  }, [profileData.handleLanguageToggle]);
 
   const handleWorkTypeToggle = useMemo(() => (typeId: string) => {
-    const currentTypes = profileData.preferredWorkTypes;
-    const newTypes = currentTypes.includes(typeId) 
-      ? currentTypes.filter(id => id !== typeId)
-      : [...currentTypes, typeId];
-    profileData.setPreferredWorkTypes(newTypes);
-  }, [profileData.preferredWorkTypes, profileData.setPreferredWorkTypes]);
+    profileData.handleWorkTypeToggle(typeId);
+  }, [profileData.handleWorkTypeToggle]);
 
   const handleFarmerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedRole) return;
+    
+    console.log('Submitting farmer profile:', {
+      phone: profileData.farmerPhone,
+      location: profileData.farmerLocation,
+      crops: profileData.selectedFarmerCrops
+    });
     
     if (!profileData.farmerPhone || !profileData.farmerLocation || profileData.selectedFarmerCrops.length === 0) {
       toast({
@@ -144,7 +148,10 @@ const ProfileCompletion = () => {
         })
         .eq('id', user.id);
         
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
       
       await refreshProfile();
       
@@ -170,6 +177,12 @@ const ProfileCompletion = () => {
   const handleLaborerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedRole) return;
+    
+    console.log('Submitting laborer profile:', {
+      phone: profileData.laborerPhone,
+      location: profileData.laborerLocation,
+      crops: profileData.selectedLaborerCrops
+    });
     
     if (!profileData.laborerPhone || !profileData.laborerLocation || profileData.selectedLaborerCrops.length === 0) {
       toast({
@@ -203,7 +216,10 @@ const ProfileCompletion = () => {
         })
         .eq('id', user.id);
         
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
       
       await refreshProfile();
       
@@ -240,6 +256,8 @@ const ProfileCompletion = () => {
 
   // Show role selection if no role is selected
   const shouldShowRoleSelection = !effectiveRole;
+
+  console.log('ProfileCompletion render - effectiveRole:', effectiveRole, 'shouldShowRoleSelection:', shouldShowRoleSelection);
 
   return (
     <ProtectedRoute>

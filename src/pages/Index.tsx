@@ -10,13 +10,15 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
 
 const Index = () => {
-  const { user, profileCompleted } = useAuth();
+  const { user, profileCompleted, userRole, loading } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleProfileCompletionClick = () => {
     setIsNavigating(true);
     // The Link component will handle navigation, this just sets loading state
   };
+
+  console.log('Index render - user:', !!user, 'profileCompleted:', profileCompleted, 'userRole:', userRole);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -30,14 +32,17 @@ const Index = () => {
         <HeroSection />
         
         {/* Profile Completion CTA - Only shown for logged in users */}
-        {user && (
+        {user && !loading && (
           <section className="py-6 bg-amber-50">
             <div className="container mx-auto px-4 text-center">
               {!profileCompleted ? (
                 <>
                   <h3 className="text-xl font-bold mb-3">Complete Your Profile</h3>
                   <p className="text-gray-700 mb-4">
-                    Set up your profile to start connecting with the right opportunities for your needs.
+                    {!userRole 
+                      ? "Choose your role and set up your profile to start connecting with opportunities."
+                      : "Complete your profile information to start connecting with the right opportunities."
+                    }
                   </p>
                   <Link to="/profile-completion" onClick={handleProfileCompletionClick}>
                     <Button 
@@ -113,11 +118,7 @@ const Index = () => {
             <h2 className="text-3xl font-bold text-center mb-12">Success Stories</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Testimonial 1 */}
-              
-              
-              {/* Testimonial 2 */}
-              
+              {/* Testimonial placeholders */}
             </div>
           </div>
         </section>

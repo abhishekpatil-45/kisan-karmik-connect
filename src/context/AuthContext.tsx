@@ -46,40 +46,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, full_name, phone, location')
+        .select('role, full_name, phone, location, skills')
         .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Profile fetch error:', error);
         throw error;
       }
 
+      console.log('Profile data fetched:', data);
+
       if (data) {
         setUserRole(data.role);
-        // Check if profile is completed based on role
+        
+        // Enhanced profile completion check
+        const hasBasicInfo = !!(data.full_name && data.phone && data.location);
+        const hasRoleSpecificData = data.skills && Object.keys(data.skills).length > 0;
+        
+        // Check role-specific completion
         if (data.role === 'farmer') {
-          setProfileCompleted(!!(data.full_name && data.phone && data.location));
+          const farmerComplete = hasBasicInfo && 
+            data.skills?.crops && 
+            Array.isArray(data.skills.crops) && 
+            data.skills.crops.length > 0;
+          setProfileCompleted(farmerComplete);
         } else if (data.role === 'laborer') {
-          setProfileCompleted(!!(data.full_name && data.phone && data.location));
+          const laborerComplete = hasBasicInfo && 
+            data.skills?.crops && 
+            Array.isArray(data.skills.crops) && 
+            data.skills.crops.length > 0;
+          setProfileCompleted(laborerComplete);
+        } else {
+          // No role set yet
+          setProfileCompleted(false);
         }
+        
+        console.log('Profile completed status:', profileCompleted);
+      } else {
+        // No profile data exists
+        setUserRole(null);
+        setProfileCompleted(false);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       securityMonitor.logSuspiciousActivity(userId, 'Profile fetch failed', { error });
+      setUserRole(null);
+      setProfileCompleted(false);
     }
   };
 
   const refreshProfile = async () => {
+    console.log('Refreshing profile...');
     if (user) {
       await fetchUserProfile(user.id);
     }
   };
 
   useEffect(() => {
+    console.log('Auth initialization started');
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.id);
       if (session?.user) {
         setUser(session.user);
         fetchUserProfile(session.user.id);
@@ -90,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, session?.user?.id);
       
       if (session?.user) {
         setUser(session.user);
@@ -198,16 +231,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) throw new Error('No user logged in');
 
     try {
+      console.log('Updating profile with data:', profileData);
+      
       const { error } = await supabase
         .from('profiles')
-        .update(profileData)
+        .update({
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      // Refresh profile data
+      // Refresh the profile data
       await fetchUserProfile(user.id);
       authSecurity.logSecurityEvent('Profile updated', { userId: user.id });
+      
+      console.log('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
       securityMonitor.logSuspiciousActivity(user.id, 'Profile update failed', { error });

@@ -9,6 +9,11 @@ interface RoleSelectionProps {
 }
 
 const RoleSelection = ({ onSelectRole }: RoleSelectionProps) => {
+  const handleRoleClick = (role: 'farmer' | 'laborer') => {
+    console.log('Role selected:', role);
+    onSelectRole(role);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="text-center mb-8">
@@ -37,7 +42,7 @@ const RoleSelection = ({ onSelectRole }: RoleSelectionProps) => {
               <li>• Manage seasonal workforce needs</li>
             </ul>
             <Button 
-              onClick={() => onSelectRole('farmer')} 
+              onClick={() => handleRoleClick('farmer')} 
               className="w-full"
               size="lg"
             >
@@ -64,7 +69,7 @@ const RoleSelection = ({ onSelectRole }: RoleSelectionProps) => {
               <li>• Build your professional reputation</li>
             </ul>
             <Button 
-              onClick={() => onSelectRole('laborer')} 
+              onClick={() => handleRoleClick('laborer')} 
               className="w-full"
               size="lg"
               variant="outline"
