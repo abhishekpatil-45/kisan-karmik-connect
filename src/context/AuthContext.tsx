@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -25,6 +24,16 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+// Type guards for skills
+const isValidSkills = (skills: any): skills is { crops?: string[] } => {
+  return skills && typeof skills === 'object' && !Array.isArray(skills);
+};
+
+const getCropsFromSkills = (skills: any): string[] => {
+  if (!isValidSkills(skills)) return [];
+  return Array.isArray(skills.crops) ? skills.crops : [];
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -64,22 +73,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         setUserRole(data.role);
         
-        // Enhanced profile completion check
+        // Enhanced profile completion check with proper type handling
         const hasBasicInfo = !!(data.full_name && data.phone && data.location);
-        const hasRoleSpecificData = data.skills && Object.keys(data.skills).length > 0;
         
-        // Check role-specific completion
+        // Check role-specific completion with proper type guards
         if (data.role === 'farmer') {
-          const farmerComplete = hasBasicInfo && 
-            data.skills?.crops && 
-            Array.isArray(data.skills.crops) && 
-            data.skills.crops.length > 0;
+          const crops = getCropsFromSkills(data.skills);
+          const farmerComplete = hasBasicInfo && crops.length > 0;
           setProfileCompleted(farmerComplete);
         } else if (data.role === 'laborer') {
-          const laborerComplete = hasBasicInfo && 
-            data.skills?.crops && 
-            Array.isArray(data.skills.crops) && 
-            data.skills.crops.length > 0;
+          const crops = getCropsFromSkills(data.skills);
+          const laborerComplete = hasBasicInfo && crops.length > 0;
           setProfileCompleted(laborerComplete);
         } else {
           // No role set yet
