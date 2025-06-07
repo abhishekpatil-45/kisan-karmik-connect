@@ -34,12 +34,15 @@ const SuccessStoriesTab = () => {
       const { data, error } = await supabase
         .from('reviews')
         .select(`
-          *,
-          reviewer:reviewer_id (
+          id,
+          rating,
+          comment,
+          created_at,
+          reviewer:profiles!reviews_reviewer_id_fkey (
             full_name,
             role
           ),
-          reviewee:reviewee_id (
+          reviewee:profiles!reviews_reviewee_id_fkey (
             full_name,
             role
           )

@@ -60,8 +60,12 @@ const JobHistoryTab = () => {
       const { data, error } = await supabase
         .from('job_applications')
         .select(`
-          *,
-          job:job_id (
+          id,
+          job_id,
+          status,
+          applied_at,
+          completed_at,
+          job:jobs!job_applications_job_id_fkey (
             title,
             description,
             location,
@@ -71,7 +75,7 @@ const JobHistoryTab = () => {
             pay_type,
             crop_category,
             labor_type,
-            farmer:farmer_id (
+            farmer:profiles!jobs_farmer_id_fkey (
               id,
               full_name
             )

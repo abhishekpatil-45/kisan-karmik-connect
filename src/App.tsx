@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,70 +23,73 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public routes - accessible to everyone */}
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/category-selection" element={<CategorySelection />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/jobs" element={<Jobs />} />
-            
-            {/* Protected routes - only accessible when logged in */}
-            <Route 
-              path="/profile-setup" 
-              element={
-                <ProtectedRoute>
-                  <ProfileSetup />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile-completion" 
-              element={
-                <ProtectedRoute>
-                  <ProfileCompletion />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/messages" 
-              element={
-                <ProtectedRoute>
-                  <Messages />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/profile/:id" element={<Profile />} />
-            
-            {/* Redirects */}
-            <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
-            
-            {/* 404 page */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public routes - accessible to everyone */}
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/category-selection" element={<CategorySelection />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/jobs" element={<Jobs />} />
+              
+              {/* Protected routes - only accessible when logged in */}
+              <Route 
+                path="/profile-setup" 
+                element={
+                  <ProtectedRoute>
+                    <ProfileSetup />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile-completion" 
+                element={
+                  <ProtectedRoute>
+                    <ProfileCompletion />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/messages" 
+                element={
+                  <ProtectedRoute>
+                    <Messages />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/profile/:id" element={<Profile />} />
+              
+              {/* Redirects */}
+              <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              
+              {/* 404 page */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
